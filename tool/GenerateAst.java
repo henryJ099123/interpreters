@@ -17,6 +17,7 @@ public class GenerateAst {
         // for each rule, have the arguments be other nonterminals for that rule
         defineAst(outputDir, "Expr", Arrays.asList(
             "Binary   : Expr left, Token operator, Expr right",
+            "Conditional    : Expr condition, Expr ifTrue, Expr ifFalse", 
             "Grouping : Expr expression",
             "Literal  : Object value",
             "Unary    : Token operator, Expr right"

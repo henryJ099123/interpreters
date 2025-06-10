@@ -11,6 +11,11 @@ class AstPrinter implements Expr.Visitor<String> {
     }
 
     @Override
+    public String visitConditionalExpr(Expr.Conditional expr) {
+        return parenthesize("condition", expr.condition, expr.ifTrue, expr.ifFalse);
+    }
+
+    @Override
     public String visitGroupingExpr(Expr.Grouping expr) {
         return parenthesize("group", expr.expression);
     }

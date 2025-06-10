@@ -28,8 +28,31 @@ class Parser {
 
     // nonterminal rules translate to function code
     private Expr expression() {
-        return equality();
+        return comma();
     }
+
+    private Expr comma() {
+        Expr expr = conditional();
+
+        while(match(COMMA)) {
+            Token operator = previous();
+            Expr right = conditional();
+            expr = new Expr.Binary(expr, operator, right);
+        }
+        return expr;
+    }
+
+    private Expr conditional() {
+        Expr expr = equality();
+        if(match(QUESTION)) {
+            Expr left = expression();
+            consume(COLON, "Expect ':' after the 'ifTrue' branch of a conditional expression.");
+            Expr right = conditional();
+            expr = new Expr.Conditional(expr, left, right);
+        }
+
+        return expr;
+    }    
 
     // an equality expression:
     // expression -> comparison (("==" | "!=") comparison )*
@@ -115,7 +138,7 @@ class Parser {
 
         // if there is no match for a primary, i.e.
         // an expression must occur here
-        throw error(peek(), "Expect expression.")
+        throw error(peek(), "Expect expression.");
     }
 
 
@@ -131,6 +154,7 @@ class Parser {
         return false;
     }
 
+    // eats expected token and returns error if not
     private Token consume(TokenType type, String message) {
         if(check(type)) return advance();
         throw error(peek(), message);

@@ -82,3 +82,11 @@ explicitly stored, but known via the call stack
 - therefore, we will throw the error when desired
 and *catch* it higher up in the call stack
     - then we must discard tokens until the next statement (the semicolon)
+
+## Additions
+- I added both the comma operator and the ternary operator.
+    - note: the author of this book was stupid and I literally could not
+    fix the argument thing for functions because we haven't gotten there yet.
+    So **remember** to come back and fix that.
+    - I had to add a whole new expression type for the ternary operator.
+    Hopefully that doesn't screw me over later?
