@@ -1,6 +1,7 @@
 package lox;
 
 import java.util.List;
+import java.util.ArrayList;
 
 import static lox.TokenType.*;
 
@@ -18,12 +19,19 @@ class Parser {
     }
 
     // the initial statement!
-    Expr parse() {
-        try {
-            return expression();
-        } catch(ParseError error) { // why do anything else if an error is found!
-            return null;
+    List<Stmt> parse() {
+        List<Stmt> statements = new ArrayList<>();
+        while(!isAtEnd()) {
+            statements.add(declaration());
         }
+
+        return statements;
+
+        // try {
+        //     return expression();
+        // } catch(ParseError error) { // why do anything else if an error is found!
+        //     return null;
+        // }
     }
 
     // nonterminal rules translate to function code
@@ -31,12 +39,52 @@ class Parser {
         return comma();
     }
 
+    private Stmt declaration() {
+        try {
+            if(match(VAR))
+                return varDeclaration();
+            return statement();
+        } catch(ParseError error) {
+            synchronize();
+            return null;
+        }
+    }
+
+    private Stmt varDeclaration() {
+        Token name = consume(IDENTIFIER, "Expect variable name");
+        Expr initializer = null;
+
+        // allows declaring variable without initializing it
+        if(match(EQUAL))
+            initializer = expression();
+
+        consume(SEMICOLON, "Expect ';' after variable declaration.");
+        return new Stmt.Var(name, initializer);
+    }
+
+    private Stmt statement() {
+        if(match(PRINT)) return printStatement();
+        return expressionStatement();
+    }
+
+    private Stmt printStatement() {
+        Expr value = expression();
+        consume(SEMICOLON, "Expect ';' after value.");
+        return new Stmt.Print(value);
+    }
+
+    private Stmt expressionStatement() {
+        Expr value = expression();
+        consume(SEMICOLON, "Expect ';' after value.");
+        return new Stmt.Expression(value);
+    }
+
     private Expr comma() {
-        Expr expr = conditional();
+        Expr expr = assign_or_condition();
 
         while(match(COMMA)) {
             Token operator = previous();
-            Expr right = conditional();
+            Expr right = assign_or_condition();
             expr = new Expr.Binary(expr, operator, right);
         }
         return expr;
@@ -52,7 +100,52 @@ class Parser {
         }
 
         return expr;
-    }    
+    }
+
+    // since I'm making these have equal precedence
+    private Expr assign_or_condition() {
+        Expr expr = equality();
+        if(match(EQUAL)) {
+            Token equals = previous();
+            Expr value = assign_or_condition();
+            
+            // if its a variable it'll boil down to an Expr.Variable
+            // then we can extract its name token and return the correct assignment expression
+            if (expr instanceof Expr.Variable) {
+                Token name = ((Expr.Variable) expr).name;
+                return new Expr.Assign(name, value);
+            }
+
+            error(equals, "Invalid assignment to left-hand side.");
+
+        } else if(match(QUESTION)) {
+            Expr left = expression();
+            consume(COLON, "Expect ':' after the 'ifTrue' branch of a conditional expression.");
+            Expr right = assign_or_condition();
+            expr = new Expr.Conditional(expr, left, right);
+        }
+        return expr;
+    }
+
+    private Expr assignment() {
+        // run the left-hand side anyways?
+        Expr expr = conditional();
+        if(match(EQUAL)) {
+            Token equals = previous();
+            Expr value = assignment();
+
+            // if its a variable it'll boil down to an Expr.Variable
+            // then we can extract its name token and return the correct assignment expression
+            if (expr instanceof Expr.Variable) {
+                Token name = ((Expr.Variable) expr).name;
+                return new Expr.Assign(name, value);
+            }
+
+            error(equals, "Invalid assignment to left-hand side.");
+        }
+
+        return expr;
+    }
 
     // an equality expression:
     // expression -> comparison (("==" | "!=") comparison )*
@@ -123,7 +216,7 @@ class Parser {
 
     // a primary expr:
     // primary -> NUMBER | STRING | "true" | "false" | "nil" | "("expr")"
-
+    // now, also IDENTIFIER
     private Expr primary() {
         if(match(NUMBER, STRING)) return new Expr.Literal(previous().literal);
         if(match(FALSE)) return new Expr.Literal(false);
@@ -135,6 +228,7 @@ class Parser {
             consume(RIGHT_PAREN, "Expect ')' after expression.");
             return new Expr.Grouping(expr);
         }
+        if(match(IDENTIFIER)) return new Expr.Variable(previous());
 
         // if there is no match for a primary, i.e.
         // an expression must occur here

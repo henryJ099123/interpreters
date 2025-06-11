@@ -112,3 +112,15 @@ that implicitly exist between these languages
 ### Running the interpreter
 
 - `Lox` class uses a `static` variable for the `Interpreter` object because if the class runs successive lines we want the global variables to persist between them
+
+## Design Note: static vs dynamic typing
+
+- static typing and dynamic typing are not black and white (i.e. there is overlap)
+    - some statically typed languages do type checks at runtime
+- in Java, `static` type system assumes a cast expression succeeds
+    - however, casts can fail
+    - upcasting and then doing some improper stuff downcasting can cause runtime errors
+- ex. **covariance** in Java and C#
+    - always safe if you always read and never write
+- I'd imagine the language most hardcore on static typing and lack of runtime errors is ***Rust***
+    - too many runtime errors $\Rightarrow$ people less confident in your code

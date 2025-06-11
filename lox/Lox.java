@@ -60,10 +60,12 @@ public class Lox {
 
         // parse the expression
         Parser parser = new Parser(tokens);
-        Expr expression = parser.parse();
+        List<Stmt> statements = parser.parse();
+
+        //syntax error
         if(hadError) return;
-        System.out.println(new AstPrinter().print(expression));
-        interpreter.interpret(expression);
+        // System.out.println(new AstPrinter().print(statements));
+        interpreter.interpret(statements);
     }
 
     // error handling. it's generally good to separate code that

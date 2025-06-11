@@ -92,7 +92,7 @@ class Scanner {
                     //this means this is a comment. **NO** addToken call.
                     while(peek() != '\n' && !isAtEnd()) advance();
 
-                // multiline comments allowed
+                // multiline comments allowed, but not nested
                 } else if (match('*')) {
                     while(peek() != '*' && peekNext() != '/' && !isAtEnd()) {
                         if(peek() == '\n') line++;
@@ -132,6 +132,7 @@ class Scanner {
         }
     }
 
+    // add either a variable name or a keyword
     private void identifier() {
         while(isAlphaNumeric(peek())) advance();
 
