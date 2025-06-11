@@ -11,6 +11,11 @@ public class Lox {
 
     // for error handling
     static boolean hadError = false;
+    static boolean hadRuntimeError = false;
+
+    // reuse the same interpreter for each REPL session
+    // i.e. global variables should persist
+    private static final Interpreter interpreter = new Interpreter();
 
     // read file from command line or open up interpreter
     public static void main(String[] args) throws IOException {
@@ -31,6 +36,7 @@ public class Lox {
 
         // indicate an error in the exit code
         if(hadError) System.exit(65);
+        if(hadRuntimeError) System.exit(70);
     }
 
     // run from prompt
@@ -57,6 +63,7 @@ public class Lox {
         Expr expression = parser.parse();
         if(hadError) return;
         System.out.println(new AstPrinter().print(expression));
+        interpreter.interpret(expression);
     }
 
     // error handling. it's generally good to separate code that
@@ -65,16 +72,25 @@ public class Lox {
         report(line, "", message);
     }
 
+    // error handling report format
     private static void report(int line, String where, String message) {
         String err_msg = "[line %d] Error%s: %s";
         System.err.println(String.format(err_msg, line, "", message));
         hadError = true;
     }
 
+    // error handling for an entire token
     static void error(Token token, String message) {
         if (token.type == TokenType.EOF)
             report(token.line, " at end", message);
         else
             report(token.line, "at '" + token.lexeme + "'", message);
+    }
+
+    // error handling for a runtime error
+    // would be best to show the entire call stack
+    static void runtimeError(RuntimeError error) {
+        System.err.println(error.getMessage() + "\n[line " + error.token.line + "]");
+        hadRuntimeError = true;
     }
 }
