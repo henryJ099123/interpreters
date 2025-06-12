@@ -45,3 +45,16 @@ if(first) if(second) whenTrue(); else whenFalse();
         - I did this for the pre-incrementers `++` and `--`
     - I think I am going to add the ability for a "finally" aspect to the `while` loop (hidden) so that the execution of the increment for `for` still occurs regardless of the body having a `continue`
         - so I did this and give option for an `aftereach` to execute each loop regardless of `continue` but *doesn't* execute on `break`
+
+## Design note on syntactic sugar
+
+- how much syntactic sugar to put into a language?
+    - some languages push for almost no syntax at all, like Lisp and Smalltalk
+        - pushes for the *language* to not need syntactic sugar and let library code be as expressive as the language
+    - some languages prioritize simplicity and clarity, such as C, Lua, and Go
+    - some languages have a mix of both, like Java and Python
+    - some languages heap on syntactic sugar, like C++ and Perl
+- to a degree, later released languages have more syntactic sugar, and newer syntax is nice sometimes as it can be backwards compatible
+    - once added, it can't be removed!
+- there's a popular push against syntactic sugar, as it can bloat a language, but it seems successful langauges have a good amount of syntactic sugar
+
