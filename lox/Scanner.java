@@ -22,6 +22,7 @@ class Scanner {
         keywords.put("if", IF);
         keywords.put("nil", NIL);
         keywords.put("or", OR);
+        keywords.put("xor", XOR);
         keywords.put("print", PRINT);
         keywords.put("return", RETURN);
         keywords.put("super", SUPER);
@@ -29,6 +30,7 @@ class Scanner {
         keywords.put("true", TRUE);
         keywords.put("var", VAR);
         keywords.put("while", WHILE);
+        keywords.put("break", BREAK);
         
     }
 
@@ -67,8 +69,10 @@ class Scanner {
             case '}': addToken(RIGHT_BRACE); break;
             case ',': addToken(COMMA); break;
             case '.': addToken(DOT); break;
-            case '-': addToken(MINUS); break;
-            case '+': addToken(PLUS); break;
+            case '+': 
+                addToken(match('+') ? PLUSPLUS : PLUS); break;
+            case '-': 
+                addToken(match('-') ? MINUSMINUS : MINUS); break;
             case ';': addToken(SEMICOLON); break;
             case '*': addToken(STAR); break; 
             case '?': addToken(QUESTION); break;

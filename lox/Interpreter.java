@@ -52,6 +52,23 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return null;
     }
 
+    @Override
+    public Void visitIfStmt(Stmt.If stmt) {
+        Object condition = evaluate(stmt.condition);
+        if (isTruthy(condition))
+            execute(stmt.ifTrue);
+        else if(stmt.ifFalse != null)
+            execute(stmt.ifFalse);
+        return null;
+    }
+
+    @Override
+    public Void visitWhileStmt(Stmt.While stmt) {
+        while(isTruthy(evaluate(stmt.condition)))
+            execute(stmt.body);
+        return null;
+    }
+
     void executeBlock(List<Stmt> statements, Environment environment) {
         Environment previous = this.environment;
         try {
@@ -91,6 +108,26 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         Object value = evaluate(expr.value);
         environment.assign(expr.name, value);
         return value;
+    }
+
+    @Override
+    public Object visitLogicalExpr(Expr.Logical expr) {
+        Object left = evaluate(expr.left);
+        switch(expr.operator.type) {   
+            case AND:
+                if(!isTruthy(left))
+                    return left;
+                return evaluate(expr.right);
+            case OR:
+                if(isTruthy(left))
+                    return left;
+                return evaluate(expr.right);
+            case XOR:
+                return isTruthy(left) ^ isTruthy(evaluate(expr.right));
+            default:
+        }
+        // never reached
+        return null;
     }
 
     // get the expression and then negate it
@@ -143,7 +180,9 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Object visitBinaryExpr(Expr.Binary expr) {
         Object left = evaluate(expr.left);
+        // System.out.println(left);
         Object right = evaluate(expr.right);
+        // System.out.println(right);
         switch(expr.operator.type) {
             case COMMA:
                 return right;

@@ -1,0 +1,19 @@
+var whatShouldReturn = false;
+var thisShouldntCount = "nil";
+if(whatShouldReturn) {
+    whatShouldReturn = 5 + 21;
+    print whatShouldReturn;
+} else if(thisShouldntCount and whatShouldReturn)
+    print "hello world";
+else
+    print "crying rn";
+
+for(var i = 0; i < 5; ++i)
+    print i;
+
+
+var j = 5;
+while(j > 0) {
+    print j;
+    --j;
+}

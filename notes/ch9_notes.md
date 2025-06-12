@@ -1,0 +1,43 @@
+# Ch. 9: Control Flow
+
+## Turing Machines (lol)
+
+- Turing's **Turing machine** and Church's **Lambda calculus** deal with the idea of if things are computable
+    - need arithmetic, control flow, and memory
+
+## Conditional Execution
+
+- **conditional/branching control flow** is a way to not execute code
+- **looping control flow** executes some code multiple times
+- Lox *does* have a conditional operator, actually, because I implemented it, so now I have to deal with that
+- Note: for `if` statements, you need a delimiter between the expression and the `then` block, but there's no need for a delimiter between the `if` and the condition
+    - i.e. the `(` in `if(expression)` is unnecessary
+- an optional `else` introduces ambiguity
+```
+if(first) if(second) whenTrue(); else whenFalse();
+```
+- is the `else` clause here for the first or the second `if` statement?
+    - this is known as the **dangling else** problem
+    - "fixed" by kind of ignoring it, and having the `else` go to the most recent `if` (the one that directly precedes it)
+
+## Logical Operators
+
+- we still need to implement `and` and `or`, and these are special because they **short-circuit**
+    - short-circuiting is not a *syntax* concern but a *semantic* one
+- Nystrom decides to define a new class. I think this is bloated, but whatever
+    - he also decides that the logical 'and' and 'or' operators `and` and `or` do not return Boolean values but something of a proper *truthiness*
+    - I didn't do this when I implemented `xor`. I don't logically see the point of returning something that isn't just `true` or `false` because there's no real scenario where you'd want to use logical `XOR` and *not* get true or false as an output.
+    - I *do* see a point with *bitwise* xor, but I didn't implement that
+
+## While loop
+
+- we have `while` loops and `for` loops
+- recall the for loop:
+    - initializer (executed exactly once)
+        - usually an expression or a variable declaration
+    - condition
+    - increment
+- any of these statements can be omitted
+- note that this `for` loop doesn't actually *add* anything to the language
+    - it is simply syntactic sugar
+    - **desugaring**: translate syntax sugar to more primitive form to use already existing code
