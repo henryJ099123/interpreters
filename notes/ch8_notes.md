@@ -193,3 +193,17 @@ fun playIt(thing) {
     - block is a collection of declarations surrounded by curly braces
 - Nystrom manually changes and restores a mutable `environment` variable rather than just passing it as an argument
     - did this only for simplicity
+
+## Design note
+
+- Lox has distinct syntax for declaring a variable and for assigning to an existing one
+    - Python doesn't have this; it's called **implicit variable declaration**
+    - must deal with shadowing (some explicitly disallow, others create new variables)
+- explicit declaration lets the compiler know what type each variable is and how much storage should be allocated
+    - not really necessary in dynamically typed or garbage collected languages
+- problems with implicit declaration:
+    - intent to write to existing variable is not noticed if misspelled
+    - adding new variables in a local scope affects the meaning of existing code with certain languages
+    - assigning to a variable outside of scope can be difficult
+- to fix these, things become...less simple
+    - `global` and `nonlocal` in Python
