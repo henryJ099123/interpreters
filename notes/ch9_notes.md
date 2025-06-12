@@ -43,3 +43,5 @@ if(first) if(second) whenTrue(); else whenFalse();
     - **desugaring**: translate syntax sugar to more primitive form to use already existing code
     - i.e. convert `for` into `while`
         - I did this for the pre-incrementers `++` and `--`
+    - I think I am going to add the ability for a "finally" aspect to the `while` loop (hidden) so that the execution of the increment for `for` still occurs regardless of the body having a `continue`
+        - so I did this and give option for an `aftereach` to execute each loop regardless of `continue` but *doesn't* execute on `break`

@@ -4,6 +4,8 @@ import java.util.List;
 abstract class Stmt {
     interface Visitor<R> {
         R visitBlockStmt(Block stmt);
+        R visitBreakStmt(Break stmt);
+        R visitContinueStmt(Continue stmt);
         R visitExpressionStmt(Expression stmt);
         R visitWhileStmt(While stmt);
         R visitIfStmt(If stmt);
@@ -23,6 +25,28 @@ abstract class Stmt {
         final List<Stmt> statements;
     }
 
+    static class Break extends Stmt {
+        Break() {
+        }
+
+        @Override
+        <R> R accept(Visitor<R> visitor) {
+            return visitor.visitBreakStmt(this);
+        }
+
+    }
+
+    static class Continue extends Stmt {
+        Continue() {
+        }
+
+        @Override
+        <R> R accept(Visitor<R> visitor) {
+            return visitor.visitContinueStmt(this);
+        }
+
+    }
+
     static class Expression extends Stmt {
         Expression(Expr expression) {
             this.expression = expression;
@@ -37,9 +61,10 @@ abstract class Stmt {
     }
 
     static class While extends Stmt {
-        While(Expr condition, Stmt body) {
+        While(Expr condition, Stmt body, Stmt always_execute) {
             this.condition = condition;
             this.body = body;
+            this.always_execute = always_execute;
         }
 
         @Override
@@ -49,6 +74,7 @@ abstract class Stmt {
 
         final Expr condition;
         final Stmt body;
+        final Stmt always_execute;
     }
 
     static class If extends Stmt {

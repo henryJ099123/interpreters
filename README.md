@@ -4,4 +4,5 @@
     - ~~implement `++`, for pre-increment~~
     - implement `++`, for post-increment
     - implement lists
-    - implement `break`
+    - ~~implement `break`~~
+    - ~~implement `continue`~~

@@ -29,8 +29,10 @@ public class GenerateAst {
         // now define a file for the statements
         defineAst(outputDir, "Stmt", Arrays.asList(
             "Block : List<Stmt> statements",
+            "Break : ",
+            "Continue : ",
             "Expression : Expr expression",
-            "While : Expr condition, Stmt body",
+            "While : Expr condition, Stmt body, Stmt always_execute",
             "If : Expr condition, Stmt ifTrue, Stmt ifFalse",
             "Print : Expr expression",
             "Var : Token name, Expr initializer"
@@ -83,8 +85,11 @@ public class GenerateAst {
 
         //constructor
         writer.println("        " + className + "(" + fieldList + ") {");
-
-        String[] fields = fieldList.split(", ");
+        
+        String[] fields;
+        if(fieldList.isEmpty())
+            fields = new String[0];
+        else fields = fieldList.split(", ");
         // store the data from parameters
         for (String field : fields ) {
             String name = field.split(" ")[1];

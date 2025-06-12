@@ -1,0 +1,19 @@
+var i = 0;
+while(true) {
+    break;
+} aftereach {
+    print "ciao ciao";
+}
+
+for(var j = 0; j < 10;) {
+    print "hello world";
+} aftereach {
+    ++j;
+}
+
+/*
+for(var j = 0; j < 10; ++j) {
+    if(j == 5) continue;
+    if(j == 7) break;
+    print j;
+} */

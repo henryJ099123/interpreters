@@ -1,9 +1,11 @@
 program -> declaration* EOF;
 declaration -> varDecl | statement;
 varDecl -> "var" IDENTIFIER ("=" expression)? ";" ;
-statement -> exprStmt | printStmt | block | ifStmt | whileStmt | forStmt;
-whileStmt -> "while" "(" expression ")" statement;
-forStmt -> "for" "(" (varDecl | exprStmt | ";") expression? ";" expression? ")" statement;
+statement -> exprStmt | printStmt | block | ifStmt | whileStmt | forStmt | breakStmt | continueStmt;
+breakStmt -> "break;"
+continueStmt -> "continue;"
+whileStmt -> "while" "(" expression ")" statement "aftereach" statement;
+forStmt -> "for" "(" (varDecl | exprStmt | ";") expression? ";" expression? ")" statement "aftereach" statement;
 block -> "{" declaration* "}" ;
 exprStmt -> expression ";" ;
 printStmt -> "print" expression ";" ;

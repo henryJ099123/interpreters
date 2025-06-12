@@ -5,6 +5,9 @@ import java.util.List;
 //recall "Object" is root class of Lox types (and is thus return type <?>)
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     
+    private static class BreakException extends RuntimeException {}
+    private static class continueException extends RuntimeException {}
+
     // instance of the variable whatnot
     private Environment environment = new Environment();
 
@@ -64,9 +67,30 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitWhileStmt(Stmt.While stmt) {
-        while(isTruthy(evaluate(stmt.condition)))
-            execute(stmt.body);
+        try {
+            while(isTruthy(evaluate(stmt.condition))) {
+                try {
+                    execute(stmt.body);
+                    if(stmt.always_execute != null)
+                        execute(stmt.always_execute);
+                } catch(continueException e) {
+                    if(stmt.always_execute != null)
+                        execute(stmt.always_execute);
+                }
+            }
+        } catch(BreakException e) {}
+
         return null;
+    }
+
+    @Override
+    public Void visitBreakStmt(Stmt.Break stmt) {
+        throw new BreakException();
+    }
+
+    @Override
+    public Void visitContinueStmt(Stmt.Continue stmt) {
+        throw new continueException();
     }
 
     void executeBlock(List<Stmt> statements, Environment environment) {

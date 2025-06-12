@@ -13,6 +13,7 @@ class Parser {
     // read tokens instead of characters
     private final List<Token> tokens;
     private int current = 0;
+    private int loop_depth = 0;
     
     // constructor
     Parser(List<Token> tokens) {
@@ -21,6 +22,9 @@ class Parser {
 
     // the initial statement!
     List<Stmt> parse() {
+        // for(Token token: tokens) {
+        //     System.out.print(token.type + " ");
+        // }
         List<Stmt> statements = new ArrayList<>();
         while(!isAtEnd()) {
             statements.add(declaration());
@@ -69,6 +73,8 @@ class Parser {
         if(match(IF)) return ifStatement();
         if(match(WHILE)) return whileStatement();
         if(match(FOR)) return forStatement();
+        if(match(BREAK)) return breakStatement();
+        if(match(CONTINUE)) return continueStatement();
         return expressionStatement();
     }
 
@@ -90,44 +96,78 @@ class Parser {
         return new Stmt.If(condition, ifTrue, ifFalse);
     }
 
+    private Stmt breakStatement() {
+        consume(SEMICOLON, "Expect ';' after 'break'.");
+        if(loop_depth == 0)
+            error(previous(), "'break' must occur within a loop.");
+        return new Stmt.Break();
+    }
+
+    private Stmt continueStatement() {
+        consume(SEMICOLON, "Expect ';' after 'continue'.");
+        if(loop_depth == 0)
+            error(previous(), "'continue' must occur within a loop.");
+        return new Stmt.Continue();
+    }
+
     private Stmt whileStatement() {
         consume(LEFT_PAREN, "Expect '(' after 'while'.");
         Expr condition = expression();
         consume(RIGHT_PAREN, "Expect ')' after condition of 'while'.");
+        loop_depth++;
         Stmt body = statement();
-        return new Stmt.While(condition, body);
+        loop_depth--;
+        Stmt aftereach = null;
+        if(match(AFTEREACH)) {
+            aftereach = statement();
+        }
+        return new Stmt.While(condition, body, aftereach);
     }
 
     private Stmt forStatement() {
         consume(LEFT_PAREN, "Expect '(' after 'for'.");
-        Stmt initializer;
 
+        Stmt initializer;
         if(match(SEMICOLON)) initializer = null;
         else if(match(VAR)) initializer = varDeclaration();
         else initializer = expressionStatement();
 
         // a "blank" condition means true for a for loop
         Expr condition = new Expr.Literal(true);
-        if(!match(SEMICOLON))
+        if(!check(SEMICOLON))
             condition = expression();
-        consume(SEMICOLON, "Expect ';' after condition.");
+        consume(SEMICOLON, "Expect ';' after loop condition.");
 
         Expr increment = null;
-        if(!match(SEMICOLON))
+        if(!check(RIGHT_PAREN))
             increment = expression();
-        consume(RIGHT_PAREN, "Expect ')' after increment.");
+        consume(RIGHT_PAREN, "Expect ')' after loop increment.");
 
+        loop_depth++;
         Stmt body = statement();
-
+        loop_depth--;
         // throw increment at end if it's there
-        if(increment != null)
-            body = new Stmt.Block(Arrays.asList(body, new Stmt.Expression(increment)));
+        // if(increment != null)
+        //     body = new Stmt.Block(Arrays.asList(body, new Stmt.Expression(increment)));
         // create while loop with the condition
-        body = new Stmt.While(condition, body);
         // initialize before the loop
-        if(initializer != null) {
-            body = new Stmt.Block(Arrays.asList(initializer, body));
+        Stmt aftereach = null;
+        if(match(AFTEREACH)) {
+            aftereach = statement();
+            if(increment == null) 
+                body = new Stmt.While(condition, body, aftereach);
+            else
+                body = new Stmt.While(condition, body, 
+                    new Stmt.Block(Arrays.asList(aftereach, new Stmt.Expression(increment))));
+        } else {
+            if(increment == null)
+                body = new Stmt.While(condition, body, null);
+            else
+                body = new Stmt.While(condition, body, new Stmt.Expression(increment));
         }
+        
+        if(initializer != null)
+            body = new Stmt.Block(Arrays.asList(initializer, body));
 
         return body;
     }
