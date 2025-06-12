@@ -102,18 +102,6 @@ class Parser {
         return expr;
     }
 
-    private Expr conditional() {
-        Expr expr = equality();
-        if(match(QUESTION)) {
-            Expr left = expression();
-            consume(COLON, "Expect ':' after the 'ifTrue' branch of a conditional expression.");
-            Expr right = conditional();
-            expr = new Expr.Conditional(expr, left, right);
-        }
-
-        return expr;
-    }
-
     // since I'm making these have equal precedence
     private Expr assign_or_condition() {
         Expr expr = equality();
@@ -136,26 +124,6 @@ class Parser {
             Expr right = assign_or_condition();
             expr = new Expr.Conditional(expr, left, right);
         }
-        return expr;
-    }
-
-    private Expr assignment() {
-        // run the left-hand side anyways?
-        Expr expr = conditional();
-        if(match(EQUAL)) {
-            Token equals = previous();
-            Expr value = assignment();
-
-            // if its a variable it'll boil down to an Expr.Variable
-            // then we can extract its name token and return the correct assignment expression
-            if (expr instanceof Expr.Variable) {
-                Token name = ((Expr.Variable) expr).name;
-                return new Expr.Assign(name, value);
-            }
-
-            error(equals, "Invalid assignment to left-hand side.");
-        }
-
         return expr;
     }
 
