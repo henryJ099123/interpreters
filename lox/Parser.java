@@ -281,7 +281,7 @@ class Parser {
             return new Expr.Unary(operator, right);
         }
 
-        // increment and decrement operators, pre-
+        // increment and decrement operators, pre- versions
         if(match(PLUSPLUS, MINUSMINUS)) {
             Token operator = previous();
             Token new_operator;

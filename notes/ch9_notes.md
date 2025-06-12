@@ -41,3 +41,5 @@ if(first) if(second) whenTrue(); else whenFalse();
 - note that this `for` loop doesn't actually *add* anything to the language
     - it is simply syntactic sugar
     - **desugaring**: translate syntax sugar to more primitive form to use already existing code
+    - i.e. convert `for` into `while`
+        - I did this for the pre-incrementers `++` and `--`
