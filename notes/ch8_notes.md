@@ -141,3 +141,55 @@ The first is sensible, but the second is weird. Thus we don't allow it, because 
 - now we have to update the interpreter
     - if assigning to undeclared variable, that's a Runtime error
     > this isn't Python.
+- I modified things to allow the ternary operator and the comma operator for expressions.
+    - I did not follow C's precedence hierarchy because I think it's dumb that I can't make a statement that looks like
+    ```
+    true ? a = b : a = c;
+    ```
+    and have it work properly. So I made it have the same precedence as assignment.
+
+## Scope
+
+- **scope**: region where a name maps to a certain entity
+    - multiple scopes: same name can refer to different things in different contexts
+- **lexical scope** (or static scope): style of scoping where the text of the program itself shows where the scope begins and ends
+    - this is the case in most languages for variables
+    - e.g. `{}`
+- **dynamic scope**: unknown what a name refers to until the code is executed
+    - Lox has dynamically scoped methods and fields on objects
+    - consider the following block:
+```
+class Saxophone {
+    play() {
+        ...
+    }
+}
+
+class GolfClub {
+    play() {
+        ...
+    }
+}
+
+fun playIt(thing) {
+    thing.play();
+}
+```
+- it's unknown whether `thing` will play the `Saxophone`'s thing or the `GolfClub`'s thing
+- scope is the theoretical counterpart to environment
+    - Lox's scope is controlled by `{}` (called **block scope**)
+
+### Nesting and Shadowing
+
+- at first glance we might
+    - keep track of any variables declared
+    - delete all variables when the last statement is executed
+- this would work except local scope when variables have the same name
+    - local variables can **shadow** outer ones by sharing the same name
+- interpreter may need to look in any outer environments for a more "global" variable
+    - so environments are *chained* together so inner ones have reference to the other one
+    - known as a **parent-pointer tree** or a **cactus stack**
+- blocks take the place of statements, so in the grammar a block replaces a statement
+    - block is a collection of declarations surrounded by curly braces
+- Nystrom manually changes and restores a mutable `environment` variable rather than just passing it as an argument
+    - did this only for simplicity
