@@ -1,7 +1,11 @@
 program -> declaration* EOF;
-declaration -> varDecl | statement;
+declaration -> varDecl | funDecl | statement;
+funDecl -> "fun" function;
+function -> IDENTIFIER "(" parameters ")" block ;
+parameters -> IDENTIFER ("," IDENTIFIER)* ;
 varDecl -> "var" IDENTIFIER ("=" expression)? ";" ;
-statement -> exprStmt | printStmt | block | ifStmt | whileStmt | forStmt | breakStmt | continueStmt;
+statement -> exprStmt | printStmt | block | ifStmt | whileStmt | forStmt | breakStmt | continueStmt | returnStmt;
+returnStmt -> "return" expression? ";";
 breakStmt -> "break;"
 continueStmt -> "continue;"
 whileStmt -> "while" "(" expression ")" statement "aftereach" statement;
@@ -21,6 +25,8 @@ comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
 factor         → unary ( ( "/" | "*" ) unary )* ;
 unary          → ( "!" | "-" ) unary
-               | ("++" | "--") IDENTIFIER ;
+               | ("++" | "--") IDENTIFIER | call ;
+call -> primary ("(" arguments? ")")*;
+arguments -> assign_or_condition ("," assign_or_condition)* ;
 primary        → NUMBER | STRING | "true" | "false" | "nil"
                | "(" expression ")" | IDENTIFIER ;

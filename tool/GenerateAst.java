@@ -19,6 +19,7 @@ public class GenerateAst {
             "Binary   : Expr left, Token operator, Expr right",
             "Logical : Expr left, Token operator, Expr right",
             "Assign : Token name, Expr value",
+            "Call : Expr callee, Token paren, List<Expr> arguments",
             "Conditional    : Expr condition, Expr ifTrue, Expr ifFalse", 
             "Grouping : Expr expression",
             "Literal  : Object value",
@@ -31,10 +32,12 @@ public class GenerateAst {
             "Block : List<Stmt> statements",
             "Break : ",
             "Continue : ",
+            "Function : Token name, List<Token> params, List<Stmt> body",
             "Expression : Expr expression",
             "While : Expr condition, Stmt body, Stmt always_execute",
             "If : Expr condition, Stmt ifTrue, Stmt ifFalse",
             "Print : Expr expression",
+            "Return : Token keyword, Expr value",
             "Var : Token name, Expr initializer"
         ));
     }
