@@ -91,7 +91,17 @@ class Parser {
         if(match(FOR)) return forStatement();
         if(match(BREAK)) return breakStatement();
         if(match(CONTINUE)) return continueStatement();
+        if(match(RETURN)) return returnStatement();
         return expressionStatement();
+    }
+
+    private Stmt returnStatement() {
+        Token keyword = previous(); // for errors, to get line
+        Expr value = null;
+        if(!check(SEMICOLON))
+            value = expression();
+        consume(SEMICOLON, "Expect ';' after return value.");
+        return new Stmt.Return(keyword, value);
     }
 
     private Stmt printStatement() {

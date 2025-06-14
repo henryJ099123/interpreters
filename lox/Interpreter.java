@@ -1,5 +1,6 @@
 package lox;
 import java.util.List;
+import java.util.Locale;
 import java.util.ArrayList;
 
 //actually going to implement *visitor* actions now
@@ -146,7 +147,21 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return null;
     }
 
-    @Override Object VisitCallExpr(Expr.Call expr) {
+    @Override
+    public Void visitFunctionStmt(Stmt.Function stmt) {
+        LoxFunction function = new LoxFunction(stmt);
+        environment.define(stmt.name.lexeme, function);
+        return null;
+    }
+
+    @Override
+    public Void visitReturnStmt(Stmt.Return stmt) [
+        Object value = (stmt.value == null) ? null : evaluate(stmt.value);
+        throw new Return(value);
+    ]
+
+    @Override 
+    public Object visitCallExpr(Expr.Call expr) {
         Object callee = evaluate(expr.callee);
         List<Object> arguments = new ArrayList<>();
         for(Expr arg : expr.arguments)
