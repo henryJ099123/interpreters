@@ -1,5 +1,6 @@
 package lox;
 import java.util.List;
+import java.util.ArrayList;
 
 //actually going to implement *visitor* actions now
 //recall "Object" is root class of Lox types (and is thus return type <?>)
@@ -9,7 +10,25 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private static class continueException extends RuntimeException {}
 
     // instance of the variable whatnot
-    private Environment environment = new Environment();
+    public Environment globals = new Environment();
+    private Environment environment = globals;
+
+    Interpreter() {
+        globals.define("clock", new LoxCallable() {
+            @Override
+            public int arity() {return 0;}
+           
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments) {
+                return (double) System.currentTimeMillis() / 1000.0;
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
+            }
+        });
+    }
 
     // way to interface the entire interpreter
     void interpret(List<Stmt> statements) {
@@ -125,6 +144,21 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             value = evaluate(stmt.initializer);
         environment.define(stmt.name.lexeme, value);
         return null;
+    }
+
+    @Override Object VisitCallExpr(Expr.Call expr) {
+        Object callee = evaluate(expr.callee);
+        List<Object> arguments = new ArrayList<>();
+        for(Expr arg : expr.arguments)
+            arguments.add(evaluate(arg));
+
+        if(!(callee instanceof LoxCallable))
+            throw new RuntimeError(expr.paren, "Calling an uncallable thing.");
+        LoxCallable function = (LoxCallable) callee;
+        if(arguments.size() != function.arity())
+            throw new RuntimeError(expr.paren, "Expected " + function.arity() + 
+                "arguments but got " + arguments.size() + " instead.");
+        return function.call(this, arguments);
     }
 
     @Override
