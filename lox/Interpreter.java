@@ -184,7 +184,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             throw new RuntimeError(expr.operator, "Cannot increment a non-number.");
         if(expr.operator.type == TokenType.PLUSPLUS) {
             environment.assign(expr.variable.name, (double) variable + 1.0);
-        }
+        } else if (expr.operator.type == TokenType.MINUSMINUS)
+            environment.assign(expr.variable.name, (double) variable - 1.0);
         return variable;
     }
 
