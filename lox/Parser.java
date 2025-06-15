@@ -67,6 +67,7 @@ class Parser {
             } while(match(COMMA));
         }
         consume(RIGHT_PAREN, "Expect ')' after parameters.");
+        consume(LEFT_BRACE, "Expect '{' to start block.");
         List<Stmt> body = block();
         return new Stmt.Function(name, parameters, body);
     }
