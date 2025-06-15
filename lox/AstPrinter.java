@@ -18,6 +18,11 @@ class AstPrinter implements Expr.Visitor<String> {
     }
 
     @Override
+    public String visitAnonFunExpr(Expr.AnonFun expr) {
+        return parenthesize("anonFun", expr);
+    }
+
+    @Override
     public String visitBinaryExpr(Expr.Binary expr) {
         return parenthesize(expr.operator.lexeme, expr.left, expr.right);
     }

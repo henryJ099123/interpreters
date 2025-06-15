@@ -3,6 +3,25 @@ fun fib(n) {
     return fib(n-1) + fib(n-2);
 }
 var start_time = clock();
-for(var i = 0; i < 35; i = i + 1)
+for(var i = 0; i < -1; i = i + 1)
     print i + " " + fib(i);
 print clock() - start_time;
+
+fun do(fn) {
+    return fn;
+}
+
+do(fun (a) {print a;})(5);
+
+fun thrice(fn) {
+  for (var i = 1; i <= 3; i = i + 1) {
+    fn(i);
+  }
+}
+
+thrice(fun (a) {
+  print a;
+});
+// "1".
+// "2".
+// "3".

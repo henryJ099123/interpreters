@@ -29,4 +29,5 @@ unary          → ( "!" | "-" ) unary
 call -> primary ("(" arguments? ")")* | IDENTIFIER "++";
 arguments -> assign_or_condition ("," assign_or_condition)* ;
 primary        → NUMBER | STRING | "true" | "false" | "nil"
-               | "(" expression ")" | IDENTIFIER ;
+               | "(" expression ")" | IDENTIFIER | anonFun;
+anonFun -> "fun" "(" parameters ")" block;

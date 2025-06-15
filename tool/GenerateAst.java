@@ -19,6 +19,7 @@ public class GenerateAst {
             "Binary   : Expr left, Token operator, Expr right",
             "Logical : Expr left, Token operator, Expr right",
             "Assign : Token name, Expr value",
+            "AnonFun : List<Token> params, List<Stmt> body",
             "Post : Token operator, Expr.Variable variable", 
             "Call : Expr callee, Token paren, List<Expr> arguments",
             "Conditional    : Expr condition, Expr ifTrue, Expr ifFalse", 

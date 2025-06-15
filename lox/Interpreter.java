@@ -190,6 +190,11 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Object visitAnonFunExpr(Expr.AnonFun expr) {
+        return new LoxFunction(new Stmt.Function(null, expr.params, expr.body), environment);
+    }
+
+    @Override
     public Object visitAssignExpr(Expr.Assign expr) {
         Object value = evaluate(expr.value);
         environment.assign(expr.name, value);

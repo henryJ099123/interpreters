@@ -46,7 +46,8 @@ class Parser {
 
     private Stmt declaration() {
         try {
-            if(match(FUN)) return function("function");
+            if(match(FUN))
+                return function("function");
             if(match(VAR)) return varDeclaration();
             return statement();
         } catch(ParseError error) {
@@ -55,7 +56,9 @@ class Parser {
         }
     }
 
-    private Stmt.Function function(String kind) {
+    private Stmt function(String kind) {
+        if(!check(IDENTIFIER))
+            return expressionStatement();
         Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
         consume(LEFT_PAREN, "Expect '(' after declaration name.");
         List<Token> parameters = new ArrayList<>();
@@ -414,12 +417,25 @@ class Parser {
             return new Expr.Grouping(expr);
         }
         if(match(IDENTIFIER)) return new Expr.Variable(previous());
-
+        if(match(FUN)) return anonFun();
         // if there is no match for a primary, i.e.
         // an expression must occur here
         throw error(peek(), "Expect expression.");
     }
 
+    private Expr anonFun() {
+        consume(LEFT_PAREN, "Expect '(' after declaring anonymous function.");
+        List<Token> parameters = new ArrayList<>();
+        if(!check(RIGHT_PAREN)) {
+            do {
+                parameters.add(consume(IDENTIFIER, "Expect parameter for anonymous function."));
+            } while(match(COMMA));
+        }
+        consume(RIGHT_PAREN, "Expect ')' for anonymous function declaration.");
+        consume(LEFT_BRACE, "Expect start of body for anonymous function.");
+        List<Stmt> body = block();
+        return new Expr.AnonFun(parameters, body);
+    }
 
     // returns true if the current token matches any of what is desired
     // and advances if so
