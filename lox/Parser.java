@@ -372,10 +372,18 @@ class Parser {
         while(true) {
             if(match(LEFT_PAREN))
                 expr = finishCall(expr);
-            else
+            else if(match(PLUSPLUS, MINUSMINUS)) {
+                expr = post(expr, previous());
+            } else
                 break;
         }
         return expr;
+    }
+
+    private Expr post(Expr expr, Token operator) {
+        if(!(expr instanceof Expr.Variable))
+            throw error(operator, "Calling " + operator.lexeme + " on an unassignable expression.");
+        return new Expr.Post(operator, (Expr.Variable) expr);
     }
 
     private Expr finishCall(Expr callee) {

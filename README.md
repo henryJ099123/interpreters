@@ -7,3 +7,4 @@
     - ~~implement `break`~~
     - ~~implement `continue`~~
     - any other possible native functions (such as file I/O?)
+    - anonymous functions

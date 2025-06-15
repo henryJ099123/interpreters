@@ -178,6 +178,17 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Object visitPostExpr(Expr.Post expr) {
+        Object variable = evaluate(expr.variable);
+        if(!(variable instanceof Double))
+            throw new RuntimeError(expr.operator, "Cannot increment a non-number.");
+        if(expr.operator.type == TokenType.PLUSPLUS) {
+            environment.assign(expr.variable.name, (double) variable + 1.0);
+        }
+        return variable;
+    }
+
+    @Override
     public Object visitAssignExpr(Expr.Assign expr) {
         Object value = evaluate(expr.value);
         environment.assign(expr.name, value);

@@ -6,6 +6,7 @@ abstract class Expr {
         R visitBinaryExpr(Binary expr);
         R visitLogicalExpr(Logical expr);
         R visitAssignExpr(Assign expr);
+        R visitPostExpr(Post expr);
         R visitCallExpr(Call expr);
         R visitConditionalExpr(Conditional expr);
         R visitGroupingExpr(Grouping expr);
@@ -60,6 +61,21 @@ abstract class Expr {
 
         final Token name;
         final Expr value;
+    }
+
+    static class Post extends Expr {
+        Post(Token operator, Expr.Variable variable) {
+            this.operator = operator;
+            this.variable = variable;
+        }
+
+        @Override
+        <R> R accept(Visitor<R> visitor) {
+            return visitor.visitPostExpr(this);
+        }
+
+        final Token operator;
+        final Expr.Variable variable;
     }
 
     static class Call extends Expr {

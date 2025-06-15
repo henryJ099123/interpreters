@@ -13,6 +13,11 @@ class AstPrinter implements Expr.Visitor<String> {
     }
 
     @Override
+    public String visitPostExpr(Expr.Post expr) {
+        return parenthesize("++", expr);
+    }
+
+    @Override
     public String visitBinaryExpr(Expr.Binary expr) {
         return parenthesize(expr.operator.lexeme, expr.left, expr.right);
     }
