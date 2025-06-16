@@ -14,12 +14,27 @@ public class GenerateAst {
         }
         String outputDir = args[0];
 
+        // now define a file for the STATEMENTS
+        defineAst(outputDir, "Stmt", Arrays.asList(
+            "Block : List<Stmt> statements",
+            "Break : ",
+            "Continue : ",
+            "Function : Token name, Expr.Fun function",
+            "Expression : Expr expression",
+            "While : Expr condition, Stmt body, Stmt always_execute",
+            "If : Expr condition, Stmt ifTrue, Stmt ifFalse",
+            "Print : Expr expression",
+            "Return : Token keyword, Expr value",
+            "Var : Token name, Expr initializer"
+        ));
+
+        // EXPRESSIONS
         // for each rule, have the arguments be other nonterminals for that rule
         defineAst(outputDir, "Expr", Arrays.asList(
             "Binary   : Expr left, Token operator, Expr right",
             "Logical : Expr left, Token operator, Expr right",
             "Assign : Token name, Expr value",
-            "AnonFun : List<Token> params, List<Stmt> body",
+            "Fun : List<Token> params, List<Stmt> body",
             "Post : Token operator, Expr.Variable variable", 
             "Call : Expr callee, Token paren, List<Expr> arguments",
             "Conditional    : Expr condition, Expr ifTrue, Expr ifFalse", 
@@ -27,20 +42,6 @@ public class GenerateAst {
             "Literal  : Object value",
             "Unary    : Token operator, Expr right",
             "Variable : Token name"
-        ));
-
-        // now define a file for the statements
-        defineAst(outputDir, "Stmt", Arrays.asList(
-            "Block : List<Stmt> statements",
-            "Break : ",
-            "Continue : ",
-            "Function : Token name, List<Token> params, List<Stmt> body",
-            "Expression : Expr expression",
-            "While : Expr condition, Stmt body, Stmt always_execute",
-            "If : Expr condition, Stmt ifTrue, Stmt ifFalse",
-            "Print : Expr expression",
-            "Return : Token keyword, Expr value",
-            "Var : Token name, Expr initializer"
         ));
     }
 

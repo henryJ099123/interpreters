@@ -16,8 +16,8 @@ class AstPrinter implements Expr.Visitor<String> {
     }
 
     @Override
-    public String visitAnonFunExpr(Expr.AnonFun expr) {
-        return parenthesize("anonFun", expr);
+    public String visitFunExpr(Expr.Fun expr) {
+        return parenthesize("fun", expr);
     }
 
     @Override

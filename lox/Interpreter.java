@@ -76,7 +76,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Void visitFunctionStmt(Stmt.Function stmt) {
         // environment when the function is *declared*, not *called*
-        LoxFunction function = new LoxFunction(stmt, environment);
+        LoxFunction function = new LoxFunction(stmt.name.lexeme, stmt.function, environment);
         environment.define(stmt.name.lexeme, function);
         return null;
     }
@@ -174,9 +174,13 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         if(!(callee instanceof LoxCallable))
             throw new RuntimeError(expr.paren, "Calling an uncallable thing.");
         LoxCallable function = (LoxCallable) callee;
-        if(arguments.size() != function.arity())
+        if(arguments.size() != function.arity()) {
+            System.out.println(arguments.size());
+            System.out.println(function.arity());
             throw new RuntimeError(expr.paren, "Expected " + function.arity() + 
-                "arguments but got " + arguments.size() + " instead.");
+                " arguments but got " + arguments.size() + " instead.");
+        }
+
         return function.call(this, arguments);
     }
 
@@ -317,8 +321,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Object visitAnonFunExpr(Expr.AnonFun expr) {
-        return new LoxFunction(new Stmt.Function(null, expr.params, expr.body), environment);
+    public Object visitFunExpr(Expr.Fun expr) {
+        return new LoxFunction(null, new Expr.Fun(expr.params, expr.body), environment);
     }
 
     // private method to determine whether something is a number

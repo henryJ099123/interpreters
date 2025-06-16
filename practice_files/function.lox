@@ -16,3 +16,11 @@ thrice(fun (a) {
 // "1".
 // "2".
 // "3".
+
+fun adder(a, b, c, d) {
+  return a + b + c + d;
+}
+
+var x = adder(5, 15.5, 20, 30);
+x += adder(x, "asdf", "", "");
+print x;

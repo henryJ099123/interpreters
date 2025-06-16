@@ -50,10 +50,9 @@ abstract class Stmt {
     }
 
     static class Function extends Stmt {
-        Function(Token name, List<Token> params, List<Stmt> body) {
+        Function(Token name, Expr.Fun function) {
             this.name = name;
-            this.params = params;
-            this.body = body;
+            this.function = function;
         }
 
         @Override
@@ -62,8 +61,7 @@ abstract class Stmt {
         }
 
         final Token name;
-        final List<Token> params;
-        final List<Stmt> body;
+        final Expr.Fun function;
     }
 
     static class Expression extends Stmt {

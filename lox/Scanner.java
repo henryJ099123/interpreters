@@ -111,7 +111,7 @@ class Scanner {
                         if(peek() == '\n') line++;
                         advance();
                     }
-                    if(isAtEnd()) Lox.error(line, "Unterminated comment.");
+                    if(isAtEnd()) Lox.error(line, "Unterminated comment.", "Scan");
                     else {advance(); advance();} // eat the */
                 } else if(match('=')) {
                     addToken(SLASH_EQUAL);
@@ -141,7 +141,7 @@ class Scanner {
                 } else if (isAlpha(c)) {
                     identifier();
                 } else {
-                    Lox.error(line, "Unexpected character.");
+                    Lox.error(line, "Unexpected character.", "Scan");
                 }
                 break;
         }
@@ -224,7 +224,7 @@ class Scanner {
 
         // unterminated string
         if (isAtEnd()) {
-            Lox.error(line, "Unterminated string.");
+            Lox.error(line, "Unterminated string.", "Scan");
             return;
         }
         // get the closing "

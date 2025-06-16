@@ -73,29 +73,29 @@ public class Lox {
 
     // error handling. it's generally good to separate code that
     // generates the errors and the code that reports said errors
-    static void error(int line, String message) {
-        report(line, "", message);
+    static void error(int line, String message, String type) {
+        report(line, "", message, type);
     }
 
     // error handling report format
-    private static void report(int line, String where, String message) {
-        String err_msg = "[line %d] Error%s: %s";
-        System.err.println(String.format(err_msg, line, "", message));
+    private static void report(int line, String where, String message, String type) {
+        String err_msg = "[line %d] %s Error%s: %s";
+        System.err.println(String.format(err_msg, line, type, where, message));
         hadError = true;
     }
 
     // error handling for an entire token
-    static void error(Token token, String message) {
+    static void error(Token token, String message, String type) {
         if (token.type == TokenType.EOF)
-            report(token.line, " at end", message);
+            report(token.line, " at end", message, type);
         else
-            report(token.line, "at '" + token.lexeme + "'", message);
+            report(token.line, "at '" + token.lexeme + "'", message, type);
     }
 
     // error handling for a runtime error
     // would be best to show the entire call stack
     static void runtimeError(RuntimeError error) {
-        System.err.println("[line " + error.token.line + "] Error: " + error.getMessage());
+        System.err.println("[line " + error.token.line + "] Runtime Error: " + error.getMessage());
         hadRuntimeError = true;
     }
 }

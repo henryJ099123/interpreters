@@ -6,7 +6,7 @@ abstract class Expr {
         R visitBinaryExpr(Binary expr);
         R visitLogicalExpr(Logical expr);
         R visitAssignExpr(Assign expr);
-        R visitAnonFunExpr(AnonFun expr);
+        R visitFunExpr(Fun expr);
         R visitPostExpr(Post expr);
         R visitCallExpr(Call expr);
         R visitConditionalExpr(Conditional expr);
@@ -64,15 +64,15 @@ abstract class Expr {
         final Expr value;
     }
 
-    static class AnonFun extends Expr {
-        AnonFun(List<Token> params, List<Stmt> body) {
+    static class Fun extends Expr {
+        Fun(List<Token> params, List<Stmt> body) {
             this.params = params;
             this.body = body;
         }
 
         @Override
         <R> R accept(Visitor<R> visitor) {
-            return visitor.visitAnonFunExpr(this);
+            return visitor.visitFunExpr(this);
         }
 
         final List<Token> params;

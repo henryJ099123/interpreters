@@ -57,19 +57,8 @@ class Parser {
         if(!check(IDENTIFIER))
             return expressionStatement();
         Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
-        consume(LEFT_PAREN, "Expect '(' after declaration name.");
-        List<Token> parameters = new ArrayList<>();
-        if(!check(RIGHT_PAREN)) {
-            do {
-                if(parameters.size() >= 255)
-                    error(peek(), "Can't have more than 255 parameters.");
-                parameters.add(consume(IDENTIFIER, "Expect parameter name."));
-            } while(match(COMMA));
-        }
-        consume(RIGHT_PAREN, "Expect ')' after parameters.");
-        consume(LEFT_BRACE, "Expect '{' to start block.");
-        List<Stmt> body = block();
-        return new Stmt.Function(name, parameters, body);
+
+        return new Stmt.Function(name, functionExpr());
     }
 
     private Stmt varDeclaration() {
@@ -426,7 +415,7 @@ class Parser {
             do {
                 if(arguments.size() >= 255)
                     error(peek(), "Maximum number of arguments is 255.");
-                arguments.add(expression());
+                arguments.add(assign_or_condition());
             } while(match(COMMA));
         }
         Token paren = consume(RIGHT_PAREN, "Expect '(' after arguments.");
@@ -448,24 +437,26 @@ class Parser {
             return new Expr.Grouping(expr);
         }
         if(match(IDENTIFIER)) return new Expr.Variable(previous());
-        if(match(FUN)) return anonFun();
+        if(match(FUN)) return functionExpr();
         // if there is no match for a primary, i.e.
         // an expression must occur here
         throw error(peek(), "Expect expression.");
     }
 
-    private Expr anonFun() {
-        consume(LEFT_PAREN, "Expect '(' after declaring anonymous function.");
+    private Expr.Fun functionExpr() {
+        consume(LEFT_PAREN, "Expect '(' after declaring function.");
         List<Token> parameters = new ArrayList<>();
         if(!check(RIGHT_PAREN)) {
             do {
-                parameters.add(consume(IDENTIFIER, "Expect parameter for anonymous function."));
+                if(parameters.size() >= 255)
+                    error(peek(), "Can't have more than 255 parameters.");
+                parameters.add(consume(IDENTIFIER, "Expect parameter for function."));
             } while(match(COMMA));
         }
-        consume(RIGHT_PAREN, "Expect ')' for anonymous function declaration.");
-        consume(LEFT_BRACE, "Expect start of body for anonymous function.");
+        consume(RIGHT_PAREN, "Expect ')' for function declaration.");
+        consume(LEFT_BRACE, "Expect '{' to start of body for function.");
         List<Stmt> body = block();
-        return new Expr.AnonFun(parameters, body);
+        return new Expr.Fun(parameters, body);
     }
 
     // returns true if the current token matches any of what is desired
@@ -517,7 +508,7 @@ class Parser {
     // **returns**, doesn't throw
     // lets whatever calls this do the throwing
     private ParseError error(Token token, String message) {
-        Lox.error(token, message);
+        Lox.error(token, message, "Parse");
         return new ParseError();
     }
 
