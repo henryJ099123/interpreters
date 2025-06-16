@@ -48,13 +48,16 @@ public class Lox {
             System.out.print("> ");
             String line =  reader.readLine();
             if (line == null) break;
-            run(line);
+            if(!run(line))
+                break;
             hadError = false;
         }
     }
 
     // "run" each line (now just print)
-    private static void run(String source) {
+    // true: no exit()
+    // false: exit()
+    private static boolean run(String source) {
         Scanner scanner = new Scanner(source);
         List<Token> tokens = scanner.scanTokens(); //recall this is a LIST
 
@@ -63,9 +66,9 @@ public class Lox {
         List<Stmt> statements = parser.parse();
 
         //syntax error
-        if(hadError) return;
+        if(hadError) return true;
         // System.out.println(new AstPrinter().print(statements));
-        interpreter.interpret(statements);
+        return interpreter.interpret(statements);
     }
 
     // error handling. it's generally good to separate code that
@@ -92,7 +95,7 @@ public class Lox {
     // error handling for a runtime error
     // would be best to show the entire call stack
     static void runtimeError(RuntimeError error) {
-        System.err.println(error.getMessage() + "\n[line " + error.token.line + "]");
+        System.err.println("[line " + error.token.line + "] Error: " + error.getMessage());
         hadRuntimeError = true;
     }
 }

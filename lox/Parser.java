@@ -39,10 +39,7 @@ class Parser {
         // }
     }
 
-    // nonterminal rules translate to function code
-    private Expr expression() {
-        return comma();
-    }
+    /* *************** DECLARATIONS **************** */
 
     private Stmt declaration() {
         try {
@@ -87,6 +84,8 @@ class Parser {
         return new Stmt.Var(name, initializer);
     }
 
+    /* *************** STATEMENTS (general) **************** */
+
     private Stmt statement() {
         if(match(PRINT)) return printStatement();
         if(match(LEFT_BRACE)) return new Stmt.Block(block());
@@ -99,6 +98,12 @@ class Parser {
         return expressionStatement();
     }
 
+    private Stmt printStatement() {
+        Expr value = expression();
+        consume(SEMICOLON, "Expect ';' after value.");
+        return new Stmt.Print(value);
+    }
+
     private Stmt returnStatement() {
         Token keyword = previous(); // for errors, to get line
         Expr value = null;
@@ -106,12 +111,6 @@ class Parser {
             value = expression();
         consume(SEMICOLON, "Expect ';' after return value.");
         return new Stmt.Return(keyword, value);
-    }
-
-    private Stmt printStatement() {
-        Expr value = expression();
-        consume(SEMICOLON, "Expect ';' after value.");
-        return new Stmt.Print(value);
     }
 
     private Stmt ifStatement() {
@@ -124,20 +123,6 @@ class Parser {
             ifFalse = statement();
         }
         return new Stmt.If(condition, ifTrue, ifFalse);
-    }
-
-    private Stmt breakStatement() {
-        consume(SEMICOLON, "Expect ';' after 'break'.");
-        if(loop_depth == 0)
-            error(previous(), "'break' must occur within a loop.");
-        return new Stmt.Break();
-    }
-
-    private Stmt continueStatement() {
-        consume(SEMICOLON, "Expect ';' after 'continue'.");
-        if(loop_depth == 0)
-            error(previous(), "'continue' must occur within a loop.");
-        return new Stmt.Continue();
     }
 
     private Stmt whileStatement() {
@@ -168,55 +153,77 @@ class Parser {
             condition = expression();
         consume(SEMICOLON, "Expect ';' after loop condition.");
 
+        // get the increment if its there
         Expr increment = null;
         if(!check(RIGHT_PAREN))
             increment = expression();
         consume(RIGHT_PAREN, "Expect ')' after loop increment.");
 
+        // for break and continue
         loop_depth++;
         Stmt body = statement();
         loop_depth--;
-        // throw increment at end if it's there
-        // if(increment != null)
-        //     body = new Stmt.Block(Arrays.asList(body, new Stmt.Expression(increment)));
-        // create while loop with the condition
-        // initialize before the loop
+
+        // some additional functionality I added
         Stmt aftereach = null;
-        if(match(AFTEREACH)) {
+        if(match(AFTEREACH))
             aftereach = statement();
-            if(increment == null) 
-                body = new Stmt.While(condition, body, aftereach);
-            else
-                body = new Stmt.While(condition, body, 
-                    new Stmt.Block(Arrays.asList(aftereach, new Stmt.Expression(increment))));
-        } else {
-            if(increment == null)
-                body = new Stmt.While(condition, body, null);
-            else
-                body = new Stmt.While(condition, body, new Stmt.Expression(increment));
-        }
         
+        // modifies the aftereach as necessary
+        if(increment != null) {
+                aftereach = (aftereach == null) ? new Stmt.Expression(increment) :
+                    new Stmt.Block(Arrays.asList(aftereach, new Stmt.Expression(increment)));
+        }
+
+        body = new Stmt.While(condition, body, aftereach);
+        
+        // adds initializer at the beginning
         if(initializer != null)
             body = new Stmt.Block(Arrays.asList(initializer, body));
 
         return body;
     }
 
+    // creates a new break statement
+    private Stmt breakStatement() {
+        consume(SEMICOLON, "Expect ';' after 'break'.");
+        if(loop_depth == 0)
+            error(previous(), "'break' must occur within a loop.");
+        return new Stmt.Break();
+    }
+
+    // creates a new continue statement
+    private Stmt continueStatement() {
+        consume(SEMICOLON, "Expect ';' after 'continue'.");
+        if(loop_depth == 0)
+            error(previous(), "'continue' must occur within a loop.");
+        return new Stmt.Continue();
+    }
+
+    // creates a new expression statement
     private Stmt expressionStatement() {
         Expr value = expression();
         consume(SEMICOLON, "Expect ';' after value.");
         return new Stmt.Expression(value);
     }
 
-    // the reason this returns a list of statements
-    // rather than a Block statement is because this code
-    // will be reused for function bodies
+    /*  the reason this returns a list of statements
+     *  rather than a Block statement is because this code
+     *  will be reused for function bodies */
     private List<Stmt> block() {
         List<Stmt> statements = new ArrayList<>();
         while(!check(RIGHT_BRACE) && !isAtEnd())
             statements.add(declaration());
         consume(RIGHT_BRACE, "Expect '}' after block.");
         return statements;
+    }
+
+
+    /* *************** EXPRESSIONS **************** */
+
+    // nonterminal rules translate to function code
+    private Expr expression() {
+        return comma();
     }
 
     private Expr comma() {
@@ -233,18 +240,37 @@ class Parser {
     // since I'm making these have equal precedence
     private Expr assign_or_condition() {
         Expr expr = logic_or();
-        if(match(EQUAL)) {
-            Token equals = previous();
+        if(match(EQUAL, PLUS_EQUAL, MINUS_EQUAL, STAR_EQUAL, SLASH_EQUAL)) {
+            Token operator = previous();
             Expr value = assign_or_condition();
             
             // if its a variable it'll boil down to an Expr.Variable
             // then we can extract its name token and return the correct assignment expression
-            if (expr instanceof Expr.Variable) {
-                Token name = ((Expr.Variable) expr).name;
-                return new Expr.Assign(name, value);
-            }
+            if (!(expr instanceof Expr.Variable))
+                error(operator, "Invalid assignment to left-hand side.");
 
-            error(equals, "Invalid assignment to left-hand side.");
+            Token name = ((Expr.Variable) expr).name;
+
+            // switch based off of all the options
+            Token new_operator = null; // should never happen.
+            switch(operator.type) {
+                case EQUAL:
+                    return new Expr.Assign(name, value);
+                case PLUS_EQUAL:
+                    new_operator = new Token(PLUS, operator.lexeme, operator.literal, operator.line);
+                    break;
+                case MINUS_EQUAL:
+                    new_operator = new Token(MINUS, operator.lexeme, operator.literal, operator.line);
+                    break;
+                case STAR_EQUAL:
+                    new_operator = new Token(STAR, operator.lexeme, operator.literal, operator.line);
+                    break;
+                case SLASH_EQUAL:
+                    new_operator = new Token(SLASH, operator.lexeme, operator.literal, operator.line);
+                    break;
+                default:
+            }
+            return new Expr.Assign(name, new Expr.Binary(expr, new_operator, value));
 
         } else if(match(QUESTION)) {
             Expr left = expression();
@@ -255,6 +281,7 @@ class Parser {
         return expr;
     }
 
+    // logic expressions (allow short circuiting)
     private Expr logic_or() {
         Expr expr = logic_and();
         while(match(OR)) {
@@ -275,6 +302,7 @@ class Parser {
         return expr;
     }
     
+    // literally nothing new here. This could've been a binary one
     private Expr logic_xor() {
         Expr expr = equality();
         while(match(XOR)) {
@@ -370,6 +398,7 @@ class Parser {
         return call();
     }
 
+    // when something does () or ++ or -- afterward
     private Expr call() {
         Expr expr = primary();
         while(true) {
@@ -383,12 +412,14 @@ class Parser {
         return expr;
     }
 
+    // for the ++ and --
     private Expr post(Expr expr, Token operator) {
         if(!(expr instanceof Expr.Variable))
             throw error(operator, "Calling " + operator.lexeme + " on an unassignable expression.");
         return new Expr.Post(operator, (Expr.Variable) expr);
     }
 
+    // for actually completing a function call
     private Expr finishCall(Expr callee) {
         List<Expr> arguments = new ArrayList<>();
         if(!check(RIGHT_PAREN)) {
@@ -404,7 +435,7 @@ class Parser {
 
     // a primary expr:
     // primary -> NUMBER | STRING | "true" | "false" | "nil" | "("expr")"
-    // now, also IDENTIFIER
+    // now, also IDENTIFIER or an anonymous function
     private Expr primary() {
         if(match(NUMBER, STRING)) return new Expr.Literal(previous().literal);
         if(match(FALSE)) return new Expr.Literal(false);

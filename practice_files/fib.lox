@@ -1,0 +1,8 @@
+fun fib(n) {
+    if (n <= 1) return n;
+    return fib(n-1) + fib(n-2);
+}
+var start_time = clock();
+for(var i = 0; i < 35; i = i + 1)
+    print i + " " + fib(i);
+print clock() - start_time;

@@ -72,13 +72,20 @@ class Scanner {
             case ',': addToken(COMMA); break;
             case '.': addToken(DOT); break;
             case '+': 
-                addToken(match('+') ? PLUSPLUS : PLUS); break;
+                if(match('+')) addToken(PLUSPLUS);
+                else if(match('=')) addToken(PLUS_EQUAL);
+                else addToken(PLUS); 
+                break;
             case '-': 
-                addToken(match('-') ? MINUSMINUS : MINUS); break;
-            case ';': addToken(SEMICOLON); break;
-            case '*': addToken(STAR); break; 
+                if(match('-')) addToken(MINUSMINUS);
+                else if(match('=')) addToken(MINUS_EQUAL);
+                else addToken(MINUS); 
+                break;
+            case '*': 
+                addToken(match('=') ? STAR_EQUAL : STAR); break; 
             case '?': addToken(QUESTION); break;
             case ':': addToken(COLON); break;
+            case ';': addToken(SEMICOLON); break;
 
             // characters that initiate some special lexemes
             case '!': 
@@ -106,6 +113,8 @@ class Scanner {
                     }
                     if(isAtEnd()) Lox.error(line, "Unterminated comment.");
                     else {advance(); advance();} // eat the */
+                } else if(match('=')) {
+                    addToken(SLASH_EQUAL);
                 } else {
                     addToken(SLASH);
                 }
@@ -147,6 +156,8 @@ class Scanner {
         if (type == null) type = IDENTIFIER;
         addToken(type);
     }
+
+    /* *************** HELPER FUNCTIONS *************** */
 
     private boolean isAtEnd() {
         return current >= source.length(); // true if we are past EOF

@@ -7,4 +7,8 @@
     - ~~implement `break`~~
     - ~~implement `continue`~~
     - any other possible native functions (such as file I/O?)
-    - anonymous functions
+        - ~~`exit`~~
+        - file I/O
+        - input
+    - ~~anonymous functions~~
+        - fix the code to be cleaner for anonymous functions

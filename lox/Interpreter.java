@@ -1,6 +1,5 @@
 package lox;
 import java.util.List;
-import java.util.Locale;
 import java.util.ArrayList;
 
 //actually going to implement *visitor* actions now
@@ -8,12 +7,14 @@ import java.util.ArrayList;
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     
     private static class BreakException extends RuntimeException {}
-    private static class continueException extends RuntimeException {}
+    private static class ContinueException extends RuntimeException {}
+    private static class Exit extends RuntimeException {}
 
     // instance of the variable whatnot
     public Environment globals = new Environment();
     private Environment environment = globals;
 
+    // native functions
     Interpreter() {
         globals.define("clock", new LoxCallable() {
             @Override
@@ -29,38 +30,33 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 return "<native fn>";
             }
         });
+        globals.define("exit", new LoxCallable() {
+            @Override 
+            public int arity() {return 0;}
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments) {
+                throw new Exit();
+            }
+        });
     }
 
     // way to interface the entire interpreter
-    void interpret(List<Stmt> statements) {
+    // boolean is for if it should exit
+    boolean interpret(List<Stmt> statements) {
         try {
             for(Stmt statement: statements)
                 execute(statement);
         } catch (RuntimeError error) {
             Lox.runtimeError(error);
+        } catch (Return error) {
+            Lox.runtimeError(new RuntimeError(error.returnToken, "Cannot return outside of a function."));
+        } catch(Exit exit) {
+            return false;
         }
+        return true;
     }
 
-    // implement what happens when we visit a literal expression
-    // but that means just getting its value
-    @Override
-    public Object visitLiteralExpr(Expr.Literal expr) {
-        return expr.value;
-    }
-    
-    // just do a general evaluate on the expression of the grouping
-    // i.e. do what's inside the parentheses
-    @Override
-    public Object visitGroupingExpr(Expr.Grouping expr) {
-        return evaluate(expr.expression);
-    }
-
-    // just call the "accept" method on this expression
-    // which in turn recursively calls the visit method of this
-    // object on what's correctly inside of it
-    private Object evaluate(Expr expr) {
-        return expr.accept(this);
-    }
 
     // just call the "accept" method on this expression
     // which in turn calls the visit method of this statement
@@ -69,9 +65,19 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitBlockStmt(Stmt.Block stmt) {
-        // need to define a new environment to handle the new scope
-        executeBlock(stmt.statements, new Environment(environment));
+    public Void visitVarStmt(Stmt.Var stmt) {
+        Object value = null;
+        if(stmt.initializer != null)
+            value = evaluate(stmt.initializer);
+        environment.define(stmt.name.lexeme, value);
+        return null;
+    }
+
+    @Override
+    public Void visitFunctionStmt(Stmt.Function stmt) {
+        // environment when the function is *declared*, not *called*
+        LoxFunction function = new LoxFunction(stmt, environment);
+        environment.define(stmt.name.lexeme, function);
         return null;
     }
 
@@ -93,7 +99,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     execute(stmt.body);
                     if(stmt.always_execute != null)
                         execute(stmt.always_execute);
-                } catch(continueException e) {
+                } catch(ContinueException e) {
                     if(stmt.always_execute != null)
                         execute(stmt.always_execute);
                 }
@@ -110,7 +116,14 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitContinueStmt(Stmt.Continue stmt) {
-        throw new continueException();
+        throw new ContinueException();
+    }
+
+    @Override
+    public Void visitBlockStmt(Stmt.Block stmt) {
+        // need to define a new environment to handle the new scope
+        executeBlock(stmt.statements, new Environment(environment));
+        return null;
     }
 
     void executeBlock(List<Stmt> statements, Environment environment) {
@@ -127,38 +140,28 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitExpressionStmt(Stmt.Expression stmt) {
-        evaluate(stmt.expression);
-        return null;
-    }
-
-    @Override
     public Void visitPrintStmt(Stmt.Print stmt) {
         System.out.println(stringify(evaluate(stmt.expression)));
         return null;
     }
 
     @Override
-    public Void visitVarStmt(Stmt.Var stmt) {
-        Object value = null;
-        if(stmt.initializer != null)
-            value = evaluate(stmt.initializer);
-        environment.define(stmt.name.lexeme, value);
-        return null;
-    }
-
-    @Override
-    public Void visitFunctionStmt(Stmt.Function stmt) {
-        // environment when the function is *declared*, not *called*
-        LoxFunction function = new LoxFunction(stmt, environment);
-        environment.define(stmt.name.lexeme, function);
+    public Void visitExpressionStmt(Stmt.Expression stmt) {
+        evaluate(stmt.expression);
         return null;
     }
 
     @Override
     public Void visitReturnStmt(Stmt.Return stmt) {
         Object value = (stmt.value == null) ? null : evaluate(stmt.value);
-        throw new Return(value);
+        throw new Return(stmt.keyword, value);
+    }
+
+    // just call the "accept" method on this expression
+    // which in turn indirectly calls the visit method of this
+    // object on what's correctly inside of it
+    private Object evaluate(Expr expr) {
+        return expr.accept(this);
     }
 
     @Override 
@@ -190,15 +193,18 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Object visitAnonFunExpr(Expr.AnonFun expr) {
-        return new LoxFunction(new Stmt.Function(null, expr.params, expr.body), environment);
-    }
-
-    @Override
     public Object visitAssignExpr(Expr.Assign expr) {
         Object value = evaluate(expr.value);
         environment.assign(expr.name, value);
         return value;
+    }
+
+    // evaluating a Conditional expression
+    @Override
+    public Object visitConditionalExpr(Expr.Conditional expr) {
+        if(isTruthy(evaluate(expr.condition)))
+            return evaluate(expr.ifTrue);
+        return evaluate(expr.ifFalse);
     }
 
     @Override
@@ -219,53 +225,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
         // never reached
         return null;
-    }
-
-    // get the expression and then negate it
-    @Override
-    public Object visitUnaryExpr(Expr.Unary expr) {
-        Object right = evaluate(expr.right);
-        switch(expr.operator.type) {
-            case MINUS:
-                // this type cast is not statically known
-                // i.e. this is dynamic typing
-                // what if the cast fails?
-                checkNumberOperand(expr.operator, right);
-                return -(double)right;
-            case BANG:
-                return !isTruthy(right);
-            default:
-        }
-        // should never be reached
-        return null;
-    }
-
-    // private method to determine whether something is a number
-    // needed for dynamic type checking
-    private void checkNumberOperand(Token operator, Object operand) {
-        if (operand instanceof Double) return;
-        throw new RuntimeError(operator, "Operand must be a number.");
-    }
-
-    // same as above but check 2 things
-    private void checkNumberOperands(Token operator, Object left, Object right) {
-        if(left instanceof Double && right instanceof Double) return;
-        throw new RuntimeError(operator, "Operands must be numbers.");
-    }
-    
-    // whether to determine something is true or false
-    private boolean isTruthy(Object something) {
-        // nil (null) is false
-        if(something == null) return false;
-        // if it's a Boolean value, it is what it is
-        if (something instanceof Boolean) return (boolean)something;
-        // otherwise, call it true
-        return true;
-    }
-
-    @Override 
-    public Object visitVariableExpr(Expr.Variable expr) {
-        return environment.get(expr.name);
     }
 
     @Override
@@ -319,18 +278,77 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return null;
     }
 
+    // get the expression and then negate it
+    @Override
+    public Object visitUnaryExpr(Expr.Unary expr) {
+        Object right = evaluate(expr.right);
+        switch(expr.operator.type) {
+            case MINUS:
+                // this type cast is not statically known
+                // i.e. this is dynamic typing
+                // what if the cast fails?
+                checkNumberOperand(expr.operator, right);
+                return -(double)right;
+            case BANG:
+                return !isTruthy(right);
+            default:
+        }
+        // should never be reached
+        return null;
+    }
+
+    // implement what happens when we visit a literal expression
+    // but that means just getting its value
+    @Override
+    public Object visitLiteralExpr(Expr.Literal expr) {
+        return expr.value;
+    }
+    
+    // just do a general evaluate on the expression of the grouping
+    // i.e. do what's inside the parentheses
+    @Override
+    public Object visitGroupingExpr(Expr.Grouping expr) {
+        return evaluate(expr.expression);
+    }
+
+    @Override 
+    public Object visitVariableExpr(Expr.Variable expr) {
+        return environment.get(expr.name);
+    }
+
+    @Override
+    public Object visitAnonFunExpr(Expr.AnonFun expr) {
+        return new LoxFunction(new Stmt.Function(null, expr.params, expr.body), environment);
+    }
+
+    // private method to determine whether something is a number
+    // needed for dynamic type checking
+    private void checkNumberOperand(Token operator, Object operand) {
+        if (operand instanceof Double) return;
+        throw new RuntimeError(operator, "Operand must be a number.");
+    }
+
+    // same as above but check 2 things
+    private void checkNumberOperands(Token operator, Object left, Object right) {
+        if(left instanceof Double && right instanceof Double) return;
+        throw new RuntimeError(operator, "Operands must be numbers.");
+    }
+    
+    // whether to determine something is true or false
+    private boolean isTruthy(Object something) {
+        // nil (null) is false
+        if(something == null) return false;
+        // if it's a Boolean value, it is what it is
+        if (something instanceof Boolean) return (boolean)something;
+        // otherwise, call it true
+        return true;
+    }
+
     // Java's notions of equality are nearly identical to Lox's
     private boolean isEqual(Object a, Object b) {
         if(a == null && b == null) return true;
         if(a == null) return false;
         return a.equals(b);
-    }
-
-    // evaluating a Conditional expression
-    public Object visitConditionalExpr(Expr.Conditional expr) {
-        if(isTruthy(evaluate(expr.condition)))
-            return evaluate(expr.ifTrue);
-        return evaluate(expr.ifFalse);
     }
 
     private String stringify(Object object) {
