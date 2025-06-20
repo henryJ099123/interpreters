@@ -1,6 +1,8 @@
 package lox;
 import java.util.List;
+import java.util.Map;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 //actually going to implement *visitor* actions now
 //recall "Object" is root class of Lox types (and is thus return type <?>)
@@ -13,6 +15,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     // instance of the variable whatnot
     public Environment globals = new Environment();
     private Environment environment = globals;
+	private final Map<Expr, Integer> locals = new HashMap<>();
 
     // native functions
     Interpreter() {
@@ -49,14 +52,16 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 execute(statement);
         } catch (RuntimeError error) {
             Lox.runtimeError(error);
-        } catch (Return error) {
-            Lox.runtimeError(new RuntimeError(error.returnToken, "Cannot return outside of a function."));
         } catch(Exit exit) {
             return false;
         }
         return true;
     }
 
+	// interfacing with the resolver
+	void resolve(Expr expr, int depth) {
+		locals.put(expr, depth);
+	}
 
     // just call the "accept" method on this expression
     // which in turn calls the visit method of this statement
@@ -199,7 +204,12 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Object visitAssignExpr(Expr.Assign expr) {
         Object value = evaluate(expr.value);
-        environment.assign(expr.name, value);
+        // environment.assign(expr.name, value);
+		Integer distance = locals.get(expr);
+		if(distance != null)
+			environment.assignAt(distance, expr.name, value);
+		else
+			globals.assign(expr.name, value);
         return value;
     }
 
@@ -317,8 +327,16 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override 
     public Object visitVariableExpr(Expr.Variable expr) {
-        return environment.get(expr.name);
+        // return environment.get(expr.name);
+		return lookupVariable(expr.name, expr);
     }
+
+	private Object lookupVariable(Token name, Expr expr) {
+		Integer distance = locals.get(expr);
+		if(distance != null)
+			return environment.getAt(distance, name.lexeme);
+		return globals.get(name);
+	}
 
     @Override
     public Object visitFunExpr(Expr.Fun expr) {

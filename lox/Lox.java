@@ -67,6 +67,12 @@ public class Lox {
 
         //syntax error
         if(hadError) return true;
+
+		Resolver resolver = new Resolver(interpreter);
+		resolver.resolve(statements);
+
+		if(hadError) return true;
+
         // System.out.println(new AstPrinter().print(statements));
         return interpreter.interpret(statements);
     }
