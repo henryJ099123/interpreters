@@ -43,7 +43,7 @@ public class Environment {
 	void assignAt(int distance, Token name, Object value) {
 		// don't need to go through `assign` because the key is here?
 		// we know it's good via the map in Resolver.java
-		return get_ancestor(distance).values.put(name.lexeme, value);
+		get_ancestor(distance).values.put(name.lexeme, value);
 	}
 
 	// go up proper number of environments

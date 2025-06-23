@@ -85,7 +85,7 @@ public class Lox {
 
     // error handling report format
     private static void report(int line, String where, String message, String type) {
-        String err_msg = "[line %d] %s Error%s: %s";
+        String err_msg = "[line %d] %s Error %s: %s";
         System.err.println(String.format(err_msg, line, type, where, message));
         hadError = true;
     }

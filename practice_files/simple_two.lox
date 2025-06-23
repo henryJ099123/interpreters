@@ -8,8 +8,9 @@ if(whatShouldReturn) {
 else
     print "crying rn";
 
-for(var i = 0; i < 5; ++i)
+for(var i = 0; i < 5; ++i) {
     print i;
+}
 
 
 var j = 5;

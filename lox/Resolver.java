@@ -8,19 +8,29 @@ import java.util.Stack;
 class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 	private final Interpreter interpreter;
 	private FunctionType currentFunction = FunctionType.NONE; // for returning outside a function
+	
+	private class VariableInfo {
+		Token token;
+		boolean was_defined;
+		boolean was_used;
+
+		VariableInfo(Token token, boolean was_defined, boolean was_used) {
+			this.token = token;
+			this.was_defined = was_defined;
+			this.was_used = was_used;
+		}
+	}
 
 	// lexical scopes act as a stack
 	// used only for local (block) scopes
-	private final Stack<Map<String, Boolean>> scopes = new Stack();
+	private final Stack<Map<String, VariableInfo>> scopes = new Stack<>();
 
-	Resolver(Interpreter interpreter, FunctionType.FUNCTION) {
+	Resolver(Interpreter interpreter) {
 		this.interpreter = interpreter;
-		resolveFunction(stmt, FunctionType.FUNCTION);
-		return null;
 	}
 
 	private enum FunctionType {
-		NONE, FUNCTIOn
+		NONE, FUNCTION
 	}
 
 	@Override
@@ -56,7 +66,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 	public Void visitWhileStmt(Stmt.While stmt) {
 		resolve(stmt.condition);
 		resolve(stmt.body);
-		resolve(stmt.always_execute);
+		if(stmt.always_execute != null) resolve(stmt.always_execute);
 		return null;
 	}
 
@@ -83,7 +93,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 	public Void visitFunctionStmt(Stmt.Function stmt) {
 		declare(stmt.name);
 		define(stmt.name);
-		resolveFunction(stmt.function);
+		resolve(stmt.function);
 		return null;
 	}
 
@@ -126,14 +136,14 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
 	@Override
 	public Void visitLogicalExpr(Expr.Logical expr) {
-		resolve(Expr.left);
-		resolve(Expr.right);
+		resolve(expr.left);
+		resolve(expr.right);
 		return null;
 	}
 
 	@Override
 	public Void visitCallExpr(Expr.Call expr) {
-		resolve(Expr.callee);
+		resolve(expr.callee);
 		for(Expr argument: expr.arguments)
 			resolve(argument);
 		return null;
@@ -154,11 +164,12 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 	@Override
 	public Void visitPostExpr(Expr.Post expr) {
 		resolve(expr.variable);
+		return null;
 	}
 
 	@Override
 	public Void visitFunExpr(Expr.Fun expr) {
-		resolveFunction(expr);
+		resolveFunction(expr, FunctionType.FUNCTION);
 		return null;
 	}
 
@@ -170,7 +181,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 	@Override
 	public Void visitVariableExpr(Expr.Variable expr) {
 		// if variable exists, but value is `false`, it is declared but undefined
-		if(!scopes.isEmpty() && scopes.peek().get(expr.name.lexeme) == Boolean.FALSE)
+		if(!scopes.isEmpty() && scopes.peek().get(expr.name.lexeme).was_defined == Boolean.FALSE)
 			Lox.error(expr.name, "Can't read local variable in its own initializer", "Semantic");
 		
 		resolveLocal(expr, expr.name);
@@ -206,28 +217,32 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 	}
 
 	private void beginScope() {
-		scopes.push(new HashMap<String, Boolean>());
+		scopes.push(new HashMap<String, VariableInfo>());
 	}
 
 	private void endScope() {
-		scopes.pop();
+		Map<String, VariableInfo> scope = scopes.pop();
+		for(VariableInfo variable: scope.values()) {
+			if(!variable.was_used)
+				Lox.error(variable.token, "Local variable '" + variable.token.lexeme + "' is unused.", "Semantic");
+		}
 	}
 
 	// should add to the innermost scope so it can shadow an outer one
 	// bind its name with a `false` to indicate not ready yet (haven't resolved what it's initialized with)
 	private void declare(Token name) {
 		if(scopes.isEmpty()) return;
-		Map<String, Boolean> scope = scopes.peek();
+		Map<String, VariableInfo> scope = scopes.peek();
 		if(scope.containsKey(name.lexeme))
-			Lox.error(name, "Already a variable with name '" + name.lexeme "' in this scope.", "Semantic");
-		scope.put(name.lexeme, false);
+			Lox.error(name, "Already a variable with name '" + name.lexeme + "' in this scope.", "Semantic");
+		scope.put(name.lexeme, new VariableInfo(name, false, false));
 	}
 
 	// resolve its initializer expression in the same scope as the new variable
 	// set variable value to `true` to mark it as initialized
 	private void define(Token name) {
 		if(scopes.isEmpty()) return;
-		scopes.peek().put(name.lexeme, true);
+		scopes.peek().get(name.lexeme).was_defined = true;
 	}
 
 	// start at innermost scope and work outwards
@@ -235,7 +250,8 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 	// if we get trhough all the scopes, that means it is global
 	private void resolveLocal(Expr expr, Token name) {
 		for(int i = scopes.size() - 1; i >= 0; i--) {
-			if(scopes.get(i).containsKey(name.lexeme) {
+			if(scopes.get(i).containsKey(name.lexeme)) {
+				scopes.get(i).get(name.lexeme).was_used = true;
 				interpreter.resolve(expr, scopes.size() - 1 - i);
 				return;
 			}
