@@ -13,3 +13,4 @@
     - ~~anonymous functions~~
         - ~~fix the code to be cleaner for anonymous functions~~
     - ~~added `+=`, `\=`, `-=`, `*=`~~
+    - ~~added errors for not changing code~~

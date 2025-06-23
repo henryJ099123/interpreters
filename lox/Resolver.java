@@ -112,7 +112,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 	@Override
 	public Void visitAssignExpr(Expr.Assign expr) {
 		resolve(expr.value);
-		resolveLocal(expr, expr.name);
+		resolveLocal(expr, expr.name, false);
 		return null;
 	}
 
@@ -181,10 +181,11 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 	@Override
 	public Void visitVariableExpr(Expr.Variable expr) {
 		// if variable exists, but value is `false`, it is declared but undefined
-		if(!scopes.isEmpty() && scopes.peek().get(expr.name.lexeme).was_defined == Boolean.FALSE)
+		if(!scopes.isEmpty() && scopes.peek().containsKey(expr.name.lexeme) &&
+				scopes.peek().get(expr.name.lexeme).was_defined == Boolean.FALSE)
 			Lox.error(expr.name, "Can't read local variable in its own initializer", "Semantic");
 		
-		resolveLocal(expr, expr.name);
+		resolveLocal(expr, expr.name, true);
 		return null;
 	}
 
@@ -248,11 +249,11 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 	// start at innermost scope and work outwards
 	// if variable is found, it is resolved (and passing the # steps it took to get there)
 	// if we get trhough all the scopes, that means it is global
-	private void resolveLocal(Expr expr, Token name) {
+	private void resolveLocal(Expr expr, Token name, boolean updateUse) {
 		for(int i = scopes.size() - 1; i >= 0; i--) {
 			if(scopes.get(i).containsKey(name.lexeme)) {
-				scopes.get(i).get(name.lexeme).was_used = true;
 				interpreter.resolve(expr, scopes.size() - 1 - i);
+				if(updateUse) scopes.get(i).get(name.lexeme).was_used = true;
 				return;
 			}
 		}
