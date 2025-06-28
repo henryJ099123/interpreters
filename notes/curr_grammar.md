@@ -1,5 +1,6 @@
 program -> declaration* EOF;
-declaration -> varDecl | funDecl | statement;
+declaration -> varDecl | funDecl | classDecl | statement;
+classDecl -> "class" IDENTIFIER "{" function* "}" ;
 funDecl -> "fun" function;
 function -> IDENTIFIER "(" parameters ")" block ;
 parameters -> IDENTIFER ("," IDENTIFIER)* ;
@@ -16,7 +17,7 @@ printStmt -> "print" expression ";" ;
 ifStmt -> "if" "(" expression ")" statement ("else" statement)? ;
 expression     → comma;
 comma -> assign_or_condition ("," assign_or_condition)* ;
-assign_or_condition -> IDENTIFIER "=" assign_or_condition | logic_or ("?" expression ":" assign_or_condition) ;
+assign_or_condition -> (call ".")? IDENTIFIER "=" assign_or_condition | logic_or ("?" expression ":" assign_or_condition) ;
 logic_or -> logic_and ("or" logic_and)* ;
 logic_and -> logic_xor ("and" logic_xor)* ;
 logic_xor -> equality ("xor" equality)*;
@@ -26,7 +27,7 @@ term           → factor ( ( "-" | "+" ) factor )* ;
 factor         → unary ( ( "/" | "*" ) unary )* ;
 unary          → ( "!" | "-" ) unary
                | ("++" | "--") IDENTIFIER | call ;
-call -> primary ("(" arguments? ")")* | IDENTIFIER "++";
+call -> primary ("(" arguments? ")" | "." IDENTIFIER )* | IDENTIFIER "++";
 arguments -> assign_or_condition ("," assign_or_condition)* ;
 primary        → NUMBER | STRING | "true" | "false" | "nil"
                | "(" expression ")" | IDENTIFIER | anonFun;

@@ -86,6 +86,23 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return null;
     }
 
+	// turn syntax node into LoxClass, a runtime representation
+	@Override
+	public Void visitClassStmt(Stmt.Class stmt) {
+		environment.define(stmt.name.lexeme, null);
+
+		Map<String, LoxFunction> methods = new HashMap<>();
+		for(Stmt.Function method: stmt.methods) {
+			LoxFunction function = new LoxFunction(method.name.lexeme, method.function, environment);
+			methods.put(method.name.lexeme, function);
+		}
+
+		LoxClass c = new LoxClass(stmt.name.lexeme, methods);
+
+		environment.assign(stmt.name, c);
+		return null;
+	}
+
     @Override
     public Void visitIfStmt(Stmt.If stmt) {
         Object condition = evaluate(stmt.condition);
@@ -180,14 +197,38 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             throw new RuntimeError(expr.paren, "Calling an uncallable thing.");
         LoxCallable function = (LoxCallable) callee;
         if(arguments.size() != function.arity()) {
-            System.out.println(arguments.size());
-            System.out.println(function.arity());
+            //System.out.println(arguments.size());
+            //System.out.println(function.arity());
             throw new RuntimeError(expr.paren, "Expected " + function.arity() + 
                 " arguments but got " + arguments.size() + " instead.");
         }
 
         return function.call(this, arguments);
     }
+
+	@Override
+	public Object visitGetExpr(Expr.Get expr) {
+		Object object = evaluate(expr.object);
+		if (object instanceof LoxInstance)
+			return ((LoxInstance) object).get(expr.name);
+		throw new RuntimeError(expr.name, "Tried to access property from something not an instance of a class.");
+	}
+
+	@Override
+	public Object visitSetExpr(Expr.Set expr) {
+		Object object = evaluate(expr.object);
+
+		if(!(object instanceof LoxInstance))
+			throw new RuntimeError(expr.name, "Trying to set field of something not an instance of a class.");
+		Object value = evaluate(expr.value);
+		((LoxInstance)object).set(expr.name, value);
+		return value;
+	}
+
+	@Override
+	public Object visitThisExpr(Expr.This expr) {
+		return lookupVariable(expr.keyword, expr);
+	} 
 
     @Override
     public Object visitPostExpr(Expr.Post expr) {

@@ -43,9 +43,15 @@ class Parser {
 
     private Stmt declaration() {
         try {
-            if(match(FUN))
-                return function("function");
+            if(check(FUN)) {
+				if(checkNext(IDENTIFIER)) {
+					consume(FUN, "Function delcaration expected.");
+                	return function("function");
+				}
+				return expressionStatement();
+			}
             if(match(VAR)) return varDeclaration();
+			if(match(CLASS)) return classDeclaration();
             return statement();
         } catch(ParseError error) {
             synchronize();
@@ -53,11 +59,21 @@ class Parser {
         }
     }
 
-    private Stmt function(String kind) {
-        if(!check(IDENTIFIER))
-            return expressionStatement();
-        Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
+	private Stmt classDeclaration() {
+		Token name = consume(IDENTIFIER, "Expect class name.");
+		consume(LEFT_BRACE, "Expect '{' before class body.");
+		List<Stmt.Function> methods = new ArrayList<>();
 
+		// check for end JIC
+		while(!check(RIGHT_BRACE) && !isAtEnd())
+			methods.add(function("method"));
+
+		consume(RIGHT_BRACE, "Expect '}' after class body.");
+		return new Stmt.Class(name, methods);
+	}
+
+    private Stmt.Function function(String kind) {
+        Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
         return new Stmt.Function(name, functionExpr());
     }
 
@@ -235,38 +251,45 @@ class Parser {
             
             // if its a variable it'll boil down to an Expr.Variable
             // then we can extract its name token and return the correct assignment expression
-            if (!(expr instanceof Expr.Variable))
-                error(operator, "Invalid assignment to left-hand side.");
+            if (expr instanceof Expr.Variable) {
+				Token name = ((Expr.Variable) expr).name;
 
-            Token name = ((Expr.Variable) expr).name;
+				// switch based off of all the options
+				Token new_operator = null; // should never happen.
+				switch(operator.type) {
+					case EQUAL:
+						return new Expr.Assign(name, value);
+					case PLUS_EQUAL:
+						new_operator = new Token(PLUS, operator.lexeme, operator.literal, operator.line);
+						break;
+					case MINUS_EQUAL:
+						new_operator = new Token(MINUS, operator.lexeme, operator.literal, operator.line);
+						break;
+					case STAR_EQUAL:
+						new_operator = new Token(STAR, operator.lexeme, operator.literal, operator.line);
+						break;
+					case SLASH_EQUAL:
+						new_operator = new Token(SLASH, operator.lexeme, operator.literal, operator.line);
+						break;
+					default:
+            	}
 
-            // switch based off of all the options
-            Token new_operator = null; // should never happen.
-            switch(operator.type) {
-                case EQUAL:
-                    return new Expr.Assign(name, value);
-                case PLUS_EQUAL:
-                    new_operator = new Token(PLUS, operator.lexeme, operator.literal, operator.line);
-                    break;
-                case MINUS_EQUAL:
-                    new_operator = new Token(MINUS, operator.lexeme, operator.literal, operator.line);
-                    break;
-                case STAR_EQUAL:
-                    new_operator = new Token(STAR, operator.lexeme, operator.literal, operator.line);
-                    break;
-                case SLASH_EQUAL:
-                    new_operator = new Token(SLASH, operator.lexeme, operator.literal, operator.line);
-                    break;
-                default:
-            }
-            return new Expr.Assign(name, new Expr.Binary(expr, new_operator, value));
+            	return new Expr.Assign(name, new Expr.Binary(expr, new_operator, value));
+
+			} else if(expr instanceof Expr.Get) {
+				Expr.Get get = (Expr.Get) expr;
+				return new Expr.Set(get.object, get.name, value);
+			} else
+				error(operator, "Invalid assignment to left-hand side.");
 
         } else if(match(QUESTION)) {
             Expr left = expression();
             consume(COLON, "Expect ':' after the 'ifTrue' branch of a conditional expression.");
             Expr right = assign_or_condition();
             expr = new Expr.Conditional(expr, left, right);
-        }
+
+		}
+
         return expr;
     }
 
@@ -387,16 +410,21 @@ class Parser {
         return call();
     }
 
-    // when something does () or ++ or -- afterward
+    // when something does () or ++ or -- or . afterward
     private Expr call() {
         Expr expr = primary();
         while(true) {
-            if(match(LEFT_PAREN))
+            if(match(LEFT_PAREN)) {
                 expr = finishCall(expr);
-            else if(match(PLUSPLUS, MINUSMINUS)) {
-                expr = post(expr, previous());
-            } else
+            } else if(match(DOT)) {
+				Token name = consume(IDENTIFIER, "Expect property name after calling '.'");
+				expr = new Expr.Get(expr, name);
+			} else if(match(PLUSPLUS, MINUSMINUS)) {
+				// there is no concatening () or . with a ++. this is the last one
+                return post(expr, previous());
+			} else {
                 break;
+			}
         }
         return expr;
     }
@@ -436,6 +464,7 @@ class Parser {
             consume(RIGHT_PAREN, "Expect ')' after expression.");
             return new Expr.Grouping(expr);
         }
+		if(match(THIS)) return new Expr.This(previous());
         if(match(IDENTIFIER)) return new Expr.Variable(previous());
         if(match(FUN)) return functionExpr();
         // if there is no match for a primary, i.e.
@@ -483,6 +512,12 @@ class Parser {
         if (isAtEnd()) return false;
         return peek().type == type;
     }
+
+	private boolean checkNext(TokenType type) {
+		if(isAtEnd() || tokens.get(current + 1).type == EOF)
+			return false;
+		return tokens.get(current + 1).type == type;
+	}
 
     // advances to the next token and returns the one it just ate
     private Token advance() {

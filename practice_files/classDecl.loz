@@ -1,0 +1,7 @@
+class Does {
+	serve() {
+		print 5;
+	}
+}
+
+print Does;

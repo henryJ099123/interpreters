@@ -5,6 +5,21 @@ class AstPrinter implements Expr.Visitor<String> {
         return expr.accept(this);
     }
 
+	@Override
+	public String visitThisExpr(Expr.This expr) {
+		return "";
+	}
+
+	@Override
+	public String visitSetExpr(Expr.Set expr) {
+		return "";
+	}
+
+	@Override
+	public String visitGetExpr(Expr.Get expr) {
+		return "";
+	}
+
     @Override
     public String visitCallExpr(Expr.Call expr) {
         return parenthesize("call", expr.callee);
