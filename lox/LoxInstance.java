@@ -12,6 +12,7 @@ class LoxInstance {
 	}
 
 	Object get(Token name) {
+		// check first if it's a field
 		if(fields.containsKey(name.lexeme))
 			return fields.get(name.lexeme);
 

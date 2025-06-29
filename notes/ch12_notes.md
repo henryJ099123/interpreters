@@ -211,3 +211,54 @@ This should work properly.
 - we should not allow calling `this` outside of a method
     - therefore there is no instance for `this` to point to if you're not in a method
 - i.e. this should just be an error, statically
+
+## Constructors and Initializersi
+
+- must ensure that a new object *starts* in a good state
+    - need constructors
+    - this is the place where the stitches of different languages really start to show
+        - e.g. can read a final field before it has been initialized in its constructor in Java
+- two operations in a constructor:
+    - runtime *allocates* memory required for a fresh instance
+        - fundamental level *below* the user access (except in C++)
+    - user *initializes* the object
+- Lox will use `init` for its constructors
+    - when a class is called it looks for an "init" method
+    - if it is found, it is immediately bound and invoked like a method call
+    - argument list is forwarded along
+- this means that it might be possible to explicitly call `init`:
+```
+class Foo {
+    init() {
+        print this;
+    } 
+}
+
+var foo = Foo();
+print foo.init();
+```
+Can you "re-initialize" an object?
+    - what does it return? Should it not be `nil`,as that's what the body returns?
+- instead, we'll have the `init()` method always return `this`, which is the instance
+    - much easier clox (the C implementation of Lox)
+    - involves adding a field to `LoxFunction.java` since a user may override `init` with something else
+- what if `init` returns something?
+    - unintended, so make it a static error
+
+## Design note
+
+- this chapter introduced `LoxClass` and `LoxInstance` as runtime entities
+    - former for behavior, latter for state
+- what about defining methods on an object, just like a field?
+- to reuse behavior across objects without classes, we could define a single LoxInstance to *delegate* to another one to reuse its stuff (like inheritance)
+- this is where the **prototype** term comes from
+    - are these good ideas? methinks no
+- however, prototypes are simpler than classes
+- Nystrom defines user power from a language as having three factors:
+    - **breadth**: range of things the language can express
+        - C has a lot of breadth; Matlab does not
+    - **Ease**: how much effort to make the thing happen
+        - i.e. Python is very easy
+    - **Complexity**: how big the language is; how unsimple it is
+- goal is to not reduce complexity that may take away from breadth or ease, but to remove unnecessary or *accidental* complexity
+

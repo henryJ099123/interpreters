@@ -31,7 +31,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 	}
 
 	private enum FunctionType {
-		NONE, FUNCTION, METHOD
+		NONE, FUNCTION, INITIALIZER, METHOD
 	}
 
 	// i.e. the thing from above, but for classes instead (for `this`)
@@ -90,8 +90,11 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 	public Void visitReturnStmt(Stmt.Return stmt) {
 		if(currentFunction == FunctionType.NONE)
 			Lox.error(stmt.keyword, "Can't return outside of a function.", "Semantic");
-		if(stmt.value != null)
+		if(stmt.value != null) {
+			if(currentFunction == FunctionType.INITIALIZER)
+				Lox.error(stmt.keyword, "Can't return a value in 'init' constructor.", "Semantic");
 			resolve(stmt.value);
+		}
 		return null;
 	}
 
@@ -108,6 +111,8 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
 		for(Stmt.Function method: stmt.methods) {
 			FunctionType declaration = FunctionType.METHOD;
+			if(method.name.lexeme.equals("init"))
+				declaration = FunctionType.INITIALIZER;
 			resolveFunction(method.function, declaration);
 		}
 

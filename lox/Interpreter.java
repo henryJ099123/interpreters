@@ -81,7 +81,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Void visitFunctionStmt(Stmt.Function stmt) {
         // environment when the function is *declared*, not *called*
-        LoxFunction function = new LoxFunction(stmt.name.lexeme, stmt.function, environment);
+        LoxFunction function = new LoxFunction(stmt.name.lexeme, stmt.function, environment, false);
         environment.define(stmt.name.lexeme, function);
         return null;
     }
@@ -93,7 +93,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
 		Map<String, LoxFunction> methods = new HashMap<>();
 		for(Stmt.Function method: stmt.methods) {
-			LoxFunction function = new LoxFunction(method.name.lexeme, method.function, environment);
+			LoxFunction function = new LoxFunction(method.name.lexeme, method.function, environment, method.name.lexeme.equals("init"));
 			methods.put(method.name.lexeme, function);
 		}
 
@@ -381,7 +381,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Object visitFunExpr(Expr.Fun expr) {
-        return new LoxFunction(null, new Expr.Fun(expr.params, expr.body), environment);
+        return new LoxFunction(null, new Expr.Fun(expr.params, expr.body), environment, false);
     }
 
     // private method to determine whether something is a number
