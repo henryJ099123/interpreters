@@ -1,0 +1,27 @@
+class Math {
+	class multiply(a, b) {
+		return a * b;
+	} 
+} 
+
+print Math.multiply(3, 5);
+
+class Game {
+
+	init(name) {
+		this.name = name;
+	} 
+
+	class bestGame() {
+		print "Outer Wilds";
+	} 
+
+	myname() {
+		print this.name;
+	} 
+}
+
+var game = Game("asaf");
+game.myname();
+//game.bestGame();
+Game.bestGame();

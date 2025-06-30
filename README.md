@@ -15,3 +15,5 @@
     - *added `+=`, `/=`, `-=`, `*=`*
     - *added errors for not changing code*
     - add `+=`, `/=`, `-=`, `*=` for methods
+    - add static methods
+    - add getters and setters

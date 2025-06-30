@@ -1,6 +1,6 @@
 program -> declaration* EOF;
 declaration -> varDecl | funDecl | classDecl | statement;
-classDecl -> "class" IDENTIFIER "{" function* "}" ;
+classDecl -> "class" IDENTIFIER ("<" IDENTIFIER )? "{" function* "}" ;
 funDecl -> "fun" function;
 function -> IDENTIFIER "(" parameters ")" block ;
 parameters -> IDENTIFER ("," IDENTIFIER)* ;
@@ -30,5 +30,5 @@ unary          → ( "!" | "-" ) unary
 call -> primary ("(" arguments? ")" | "." IDENTIFIER )* | IDENTIFIER "++";
 arguments -> assign_or_condition ("," assign_or_condition)* ;
 primary        → NUMBER | STRING | "true" | "false" | "nil"
-               | "(" expression ")" | IDENTIFIER | anonFun;
+               | "(" expression ")" | IDENTIFIER | "super" "." IDENTIFIER | anonFun;
 anonFun -> "fun" "(" parameters ")" block;
