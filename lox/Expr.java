@@ -84,9 +84,9 @@ abstract class Expr {
     }
 
     static class Post extends Expr {
-        Post(Token operator, Expr.Variable variable) {
-            this.operator = operator;
-            this.variable = variable;
+        Post(Expr toReturn, Expr toAssign) {
+            this.toReturn = toReturn;
+            this.toAssign = toAssign;
         }
 
         @Override
@@ -94,8 +94,8 @@ abstract class Expr {
             return visitor.visitPostExpr(this);
         }
 
-        final Token operator;
-        final Expr.Variable variable;
+        final Expr toReturn;
+        final Expr toAssign;
     }
 
     static class Call extends Expr {

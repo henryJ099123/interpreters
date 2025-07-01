@@ -119,7 +119,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
 		if(stmt.superclass != null) {
 			beginScope();
-			scopes.peek().put("super", true);
+			scopes.peek().put("super", new VariableInfo(stmt.name, true, true));
 		} 
 
 		beginScope();
@@ -234,8 +234,8 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 		if(currentClass == ClassType.NONE) 
 			Lox.error(expr.keyword, "Cannot use 'super' outside of a class.", "Semantic");
 		else if(currentClass != ClassType.SUBCLASS)
-			Lox.error(expr.keyword, "Cannot use 'super' in a class with no superclass.");
-		resolveLocal(expr, expr.keyword);
+			Lox.error(expr.keyword, "Cannot use 'super' in a class with no superclass.", "Semantic");
+		resolveLocal(expr, expr.keyword, false);
 		return null;
 	} 
 
@@ -261,7 +261,8 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
 	@Override
 	public Void visitPostExpr(Expr.Post expr) {
-		resolve(expr.variable);
+		resolve(expr.toReturn);
+		resolve(expr.toAssign);
 		return null;
 	}
 

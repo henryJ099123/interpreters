@@ -3,6 +3,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.io.FileWriter;
+import java.io.IOException;
 
 //actually going to implement *visitor* actions now
 //recall "Object" is root class of Lox types (and is thus return type <?>)
@@ -268,14 +270,24 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Object visitPostExpr(Expr.Post expr) {
-        Object variable = evaluate(expr.variable);
-        if(!(variable instanceof Double))
-            throw new RuntimeError(expr.operator, "Cannot increment a non-number.");
-        if(expr.operator.type == TokenType.PLUSPLUS) {
-            environment.assign(expr.variable.name, (double) variable + 1.0);
-        } else if (expr.operator.type == TokenType.MINUSMINUS)
-            environment.assign(expr.variable.name, (double) variable - 1.0);
-        return variable;
+        Object value = evaluate(expr.toReturn);
+		evaluate(expr.toAssign);
+        //if(!(variable instanceof Double))
+        //    throw new RuntimeError(expr.operator, "Cannot increment a non-number.");
+		/*
+		if(expr instanceof Expr.Variable) {
+			if(expr.operator.type == TokenType.PLUSPLUS) {
+				evaluate(new Expr.Assign((Expr.Variable) expr.variable).name, new Expr.Binary(expr.variable, new Token(TokenType.PLUS, 
+				environment.assign(((Expr.Variable) expr.variable).name, (double) variable + 1.0);
+			} else if (expr.operator.type == TokenType.MINUSMINUS)
+				environment.assign(((Expr.Variable) expr.variable).name, (double) variable - 1.0);
+		} else if(expr instanceof Expr.Get) {
+			if(expr.operator.type == TokenType.PLUSPLUS) {
+				evaluate(new Expr.Set(
+			} 
+		} 
+		*/
+		return value;
     }
 
     @Override
@@ -409,7 +421,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
 	private Object lookupVariable(Token name, Expr expr) {
-		int distance = locals.get(expr);
+		Integer distance = locals.get(expr);
 		if(distance != null)
 			return environment.getAt(distance, name.lexeme);
 		return globals.get(name);

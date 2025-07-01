@@ -288,7 +288,26 @@ class Parser {
 
 			} else if(expr instanceof Expr.Get) {
 				Expr.Get get = (Expr.Get) expr;
-				return new Expr.Set(get.object, get.name, value);
+				Token new_operator = null;
+				switch(operator.type) {
+					case EQUAL:
+						return new Expr.Set(get.object, get.name, value);
+					case PLUS_EQUAL:
+						new_operator = new Token(PLUS, operator.lexeme, operator.literal, operator.line);
+						break;
+					case MINUS_EQUAL:
+						new_operator = new Token(MINUS, operator.lexeme, operator.literal, operator.line);
+						break;
+					case STAR_EQUAL:
+						new_operator = new Token(STAR, operator.lexeme, operator.literal, operator.line);
+						break;
+					case SLASH_EQUAL:
+						new_operator = new Token(SLASH, operator.lexeme, operator.literal, operator.line);
+						break;
+					default:
+				} 
+				
+				return new Expr.Set(get.object, get.name, new Expr.Binary(get, new_operator, value)); 
 			} else
 				error(operator, "Invalid assignment to left-hand side.");
 
@@ -410,12 +429,16 @@ class Parser {
             else
                 new_operator = new Token(MINUS, operator.lexeme, operator.literal, operator.line);
 
-            if(!match(IDENTIFIER))
-                throw error(peek(), "Expect assignable value for increment/decrement.");
+			Token current = peek();
 
-            right = new Expr.Variable(previous());
-            return new Expr.Assign(((Expr.Variable) right).name, 
-                new Expr.Binary(right, new_operator, new Expr.Literal(1.0)));
+            right = call();
+			if(right instanceof Expr.Variable)
+				return new Expr.Assign(((Expr.Variable) right).name, 
+					new Expr.Binary(right, new_operator, new Expr.Literal(1.0)));
+			else if(right instanceof Expr.Get)
+				return new Expr.Set(((Expr.Get) right).object, ((Expr.Get) right).name,
+					new Expr.Binary(right, new_operator, new Expr.Literal(1.0)));
+			throw error(current, "Expect assignable value for increment or decrement.");
         }
         return call();
     }
@@ -441,9 +464,17 @@ class Parser {
 
     // for the ++ and --
     private Expr post(Expr expr, Token operator) {
-        if(!(expr instanceof Expr.Variable))
-            throw error(operator, "Calling " + operator.lexeme + " on an unassignable expression.");
-        return new Expr.Post(operator, (Expr.Variable) expr);
+		Token new_operator;
+		if(operator.type == PLUSPLUS) 
+			new_operator = new Token(PLUS, operator.lexeme, operator.literal, operator.line);
+		else 
+			new_operator = new Token(MINUS, operator.lexeme, operator.literal, operator.line);
+        if(expr instanceof Expr.Variable) {
+			return new Expr.Post(expr, new Expr.Assign(((Expr.Variable) expr).name, new Expr.Binary(expr, new_operator, new Expr.Literal(1.0))));
+		} else if(expr instanceof Expr.Get) {
+			return new Expr.Post(expr, new Expr.Set(((Expr.Get) expr).object, ((Expr.Get) expr).name, new Expr.Binary(expr, new_operator, new Expr.Literal(1.0))));
+		} 
+		throw error(operator, "Calling " + operator.lexeme + " on an unassignable expression.");
     }
 
     // for actually completing a function call

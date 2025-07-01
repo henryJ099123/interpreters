@@ -36,7 +36,7 @@ public class GenerateAst {
             "Logical : Expr left, Token operator, Expr right",
             "Assign : Token name, Expr value",
             "Fun : List<Token> params, List<Stmt> body",
-            "Post : Token operator, Expr.Variable variable", 
+            "Post : Expr toReturn, Expr toAssign", 
             "Call : Expr callee, Token paren, List<Expr> arguments",
 			"Get : Expr object, Token name",
 			"Set : Expr object, Token name, Expr value",
