@@ -308,6 +308,28 @@ class Parser {
 				} 
 				
 				return new Expr.Set(get.object, get.name, new Expr.Binary(get, new_operator, value)); 
+			} else if(expr instanceof Expr.Index) {
+				Expr.Index indexExpr = (Expr.Index) expr;
+				Token new_operator = null;
+				switch(operator.type) {
+					case EQUAL:
+						return new Expr.SetIndex(indexExpr.indexer, indexExpr.index, indexExpr.bracket, value);
+					case PLUS_EQUAL:
+						new_operator = new Token(PLUS, operator.lexeme, operator.literal, operator.line);
+						break;
+					case MINUS_EQUAL:
+						new_operator = new Token(MINUS, operator.lexeme, operator.literal, operator.line);
+						break;
+					case STAR_EQUAL:
+						new_operator = new Token(STAR, operator.lexeme, operator.literal, operator.line);
+						break;
+					case SLASH_EQUAL:
+						new_operator = new Token(SLASH, operator.lexeme, operator.literal, operator.line);
+						break;
+					default:
+				} 
+				return new Expr.SetIndex(indexExpr.indexer, indexExpr.index, indexExpr.bracket, new Expr.Binary(indexExpr, new_operator, value));
+
 			} else
 				error(operator, "Invalid assignment to left-hand side.");
 
@@ -455,9 +477,12 @@ class Parser {
 			} else if(match(PLUSPLUS, MINUSMINUS)) {
 				// there is no concatening () or . with a ++. this is the last one
                 return post(expr, previous());
-			} else {
+			} else if(match(LEFT_BRACKET)) {
+				Expr index = assign_or_condition(); 
+				Token bracket = consume(RIGHT_BRACKET, "Expect ']' after indexing a sequence.");
+				expr = new Expr.Index(expr, index, bracket); 
+			} else
                 break;
-			}
         }
         return expr;
     }
@@ -473,6 +498,8 @@ class Parser {
 			return new Expr.Post(expr, new Expr.Assign(((Expr.Variable) expr).name, new Expr.Binary(expr, new_operator, new Expr.Literal(1.0))));
 		} else if(expr instanceof Expr.Get) {
 			return new Expr.Post(expr, new Expr.Set(((Expr.Get) expr).object, ((Expr.Get) expr).name, new Expr.Binary(expr, new_operator, new Expr.Literal(1.0))));
+		} else if(expr instanceof Expr.Index) {
+			return new Expr.Post(expr, new Expr.SetIndex(((Expr.Index) expr).indexer, ((Expr.Index) expr).index, ((Expr.Index) expr).bracket, new Expr.Binary(expr, new_operator, new Expr.Literal(1.0))));
 		} 
 		throw error(operator, "Calling " + operator.lexeme + " on an unassignable expression.");
     }
@@ -487,7 +514,7 @@ class Parser {
                 arguments.add(assign_or_condition());
             } while(match(COMMA));
         }
-        Token paren = consume(RIGHT_PAREN, "Expect '(' after arguments.");
+        Token paren = consume(RIGHT_PAREN, "Expect ')' after arguments.");
         return new Expr.Call(callee, paren, arguments);
     }
 
@@ -514,6 +541,16 @@ class Parser {
 		} 
         if(match(IDENTIFIER)) return new Expr.Variable(previous());
         if(match(FUN)) return functionExpr();
+		if(match(LEFT_BRACKET)) {
+			List<Expr> items = new ArrayList<>();
+			if(!check(RIGHT_BRACKET)) {
+				do {
+					items.add(assign_or_condition());
+				} while(match(COMMA));
+			} 
+			consume(RIGHT_BRACKET, "Expect ']' after index.");
+			return new Expr.Lyst(items);
+		} 
         // if there is no match for a primary, i.e.
         // an expression must occur here
         throw error(peek(), "Expect expression.");

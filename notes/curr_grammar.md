@@ -17,7 +17,7 @@ printStmt -> "print" expression ";" ;
 ifStmt -> "if" "(" expression ")" statement ("else" statement)? ;
 expression     → comma;
 comma -> assign_or_condition ("," assign_or_condition)* ;
-assign_or_condition -> (call ".")? IDENTIFIER "=" assign_or_condition | logic_or ("?" expression ":" assign_or_condition) ;
+assign_or_condition -> ((call ".")? IDENTIFIER | call "[" assign_or_condition "]") "=" assign_or_condition | logic_or ("?" expression ":" assign_or_condition) ;
 logic_or -> logic_and ("or" logic_and)* ;
 logic_and -> logic_xor ("and" logic_xor)* ;
 logic_xor -> equality ("xor" equality)*;
@@ -27,8 +27,8 @@ term           → factor ( ( "-" | "+" ) factor )* ;
 factor         → unary ( ( "/" | "*" ) unary )* ;
 unary          → ( "!" | "-" ) unary
                | ("++" | "--") IDENTIFIER | call ;
-call -> primary ("(" arguments? ")" | "." IDENTIFIER )* | IDENTIFIER "++";
+call -> primary ("(" arguments? ")" | "." IDENTIFIER | "[" assign_or_condition "]" )* | IDENTIFIER "++"
 arguments -> assign_or_condition ("," assign_or_condition)* ;
 primary        → NUMBER | STRING | "true" | "false" | "nil"
-               | "(" expression ")" | IDENTIFIER | "super" "." IDENTIFIER | anonFun;
+               | "(" expression ")" | IDENTIFIER | "super" "." IDENTIFIER | anonFun | "[" (arguments? | IDENTIFIER ) "]";
 anonFun -> "fun" "(" parameters ")" block;

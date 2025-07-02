@@ -3,8 +3,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.io.FileWriter;
-import java.io.IOException;
 
 //actually going to implement *visitor* actions now
 //recall "Object" is root class of Lox types (and is thus return type <?>)
@@ -44,6 +42,17 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 throw new Exit();
             }
         });
+		globals.define("length", new LoxCallable() {
+			@Override
+			public int arity() {return 1;}
+
+			@Override
+			public Object call(Interpreter interpreter, List<Object> arguments) {
+				if(arguments.get(0) instanceof LoxSequence)
+					return (double) ((LoxSequence) arguments.get(0)).length();
+				return null;
+			} 
+		}); 
     }
 
     // way to interface the entire interpreter
@@ -231,6 +240,35 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
 	@Override
+	public Object visitIndexExpr(Expr.Index expr) {
+		Object indexer = evaluate(expr.indexer);
+		Object index = evaluate(expr.index);
+		int intIndex = checkIndexing(indexer, index, expr.bracket);
+		return ((LoxSequence) indexer).getItem(intIndex);
+	} 
+
+	@Override
+	public Object visitSetIndexExpr(Expr.SetIndex expr) {
+		Object indexer = evaluate(expr.indexer);
+		Object index = evaluate(expr.index);
+		Object value = evaluate(expr.value);
+		int intIndex = checkIndexing(indexer, index, expr.bracket);
+		((LoxSequence) indexer).setItem(intIndex, value);
+		return value;
+	} 
+
+	private int checkIndexing(Object indexer, Object index, Token bracket) {
+		if(!(indexer instanceof LoxSequence))
+			throw new RuntimeError(bracket, "Indexing something that is not a sequence.");
+		if(!(index instanceof Double))
+			throw new RuntimeError(bracket, "Index to sequence is not a number.");
+		int intIndex = ((Double) index).intValue();
+		if(intIndex >= ((LoxSequence) indexer).length())
+			throw new RuntimeError(bracket, "Indexing out of range of sequence.");
+		return intIndex;
+	} 
+
+	@Override
 	public Object visitGetExpr(Expr.Get expr) {
 		Object object = evaluate(expr.object);
 		if (object instanceof LoxInstance)
@@ -352,9 +390,15 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             case PLUS:
                 if(left instanceof Double && right instanceof Double) 
                     return (double) left + (double) right;
-                else if (left instanceof String || right instanceof String)
+                else if ((left instanceof String && right instanceof Double) || (right instanceof String && left instanceof Double))
                     return stringify(left) + stringify(right);
-                throw new RuntimeError(expr.operator, "Operands must be two numbers or two strings.");
+				else if(left instanceof LoxList && right instanceof LoxList) {
+					List<Object> newlist = new ArrayList<>();
+					newlist.addAll(((LoxList) left).list);
+					newlist.addAll(((LoxList) right).list);
+					return new LoxList(newlist);
+				} 
+                throw new RuntimeError(expr.operator, "Invalid operands.");
             case STAR:
                 checkNumberOperands(expr.operator, left, right);
                 return (double) left * (double) right;
@@ -399,6 +443,14 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         // should never be reached
         return null;
     }
+
+	@Override
+	public Object visitLystExpr(Expr.Lyst expr) {
+		List<Object> items = new ArrayList<>();
+		for(Expr item: expr.items)
+			items.add(evaluate(item));
+		return new LoxList(items);
+	}
 
     // implement what happens when we visit a literal expression
     // but that means just getting its value
@@ -475,6 +527,14 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             }
             return text;
         }
+
+		if(object instanceof LoxList) {
+			String text = "[";
+			for(Object item: ((LoxList) object).list)
+				text += stringify(item) + ", ";
+			text = text.substring(0, text.length() - 2);
+			return text + "]";
+		} 
 
         // if a string or a boolean
         return object.toString();

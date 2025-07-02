@@ -1,0 +1,32 @@
+var n = true;
+var lst = [1,n, 2, "asdf", 3, 4, 5];
+for(var i = 0; i < length(lst); i++)
+	print lst[i];
+lst[0] = 0;
+print lst[1 - 1];
+print lst;
+
+class Lister {
+	init() {
+		this.lister = [1, 2, 3, 4];
+	} 
+
+	get(index) {
+		return this.lister[index];
+	} 
+	
+	printself() {
+		print this.lister;
+	} 
+
+	incr(index) {
+		this.lister[index]++;
+	} 
+} 
+
+var list = Lister();
+print list.get(1);
+list.printself();
+list.incr(1);
+print list.get(1);
+

@@ -38,6 +38,8 @@ public class GenerateAst {
             "Fun : List<Token> params, List<Stmt> body",
             "Post : Expr toReturn, Expr toAssign", 
             "Call : Expr callee, Token paren, List<Expr> arguments",
+			"Index : Expr indexer, Expr index, Token bracket",
+			"SetIndex : Expr indexer, Expr index, Token bracket, Expr value",
 			"Get : Expr object, Token name",
 			"Set : Expr object, Token name, Expr value",
 	 		"This : Token keyword", 
@@ -46,6 +48,7 @@ public class GenerateAst {
             "Grouping : Expr expression",
             "Literal  : Object value",
             "Unary    : Token operator, Expr right",
+			"Lyst : List<Expr> items",
             "Variable : Token name"
         ));
     }

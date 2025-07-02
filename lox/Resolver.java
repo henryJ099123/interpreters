@@ -212,6 +212,21 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 			resolve(argument);
 		return null;
 	}
+	
+	@Override
+	public Void visitIndexExpr(Expr.Index expr) {
+		resolve(expr.indexer);
+		resolve(expr.index);
+		return null;
+	} 
+
+	@Override
+	public Void visitSetIndexExpr(Expr.SetIndex expr) {
+		resolve(expr.indexer);
+		resolve(expr.index);
+		resolve(expr.value);
+		return null;
+	} 
 
 	@Override
 	public Void visitGetExpr(Expr.Get expr) {
@@ -276,6 +291,13 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 	public Void visitLiteralExpr(Expr.Literal expr) {
 		return null;
 	}
+
+	@Override
+	public Void visitLystExpr(Expr.Lyst expr) {
+		for(Expr item: expr.items)
+			resolve(item);
+		return null;
+	} 
 
 	@Override
 	public Void visitVariableExpr(Expr.Variable expr) {

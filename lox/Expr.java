@@ -9,6 +9,8 @@ abstract class Expr {
         R visitFunExpr(Fun expr);
         R visitPostExpr(Post expr);
         R visitCallExpr(Call expr);
+        R visitIndexExpr(Index expr);
+        R visitSetIndexExpr(SetIndex expr);
         R visitGetExpr(Get expr);
         R visitSetExpr(Set expr);
         R visitThisExpr(This expr);
@@ -17,6 +19,7 @@ abstract class Expr {
         R visitGroupingExpr(Grouping expr);
         R visitLiteralExpr(Literal expr);
         R visitUnaryExpr(Unary expr);
+        R visitLystExpr(Lyst expr);
         R visitVariableExpr(Variable expr);
     }
     static class Binary extends Expr {
@@ -113,6 +116,42 @@ abstract class Expr {
         final Expr callee;
         final Token paren;
         final List<Expr> arguments;
+    }
+
+    static class Index extends Expr {
+        Index(Expr indexer, Expr index, Token bracket) {
+            this.indexer = indexer;
+            this.index = index;
+            this.bracket = bracket;
+        }
+
+        @Override
+        <R> R accept(Visitor<R> visitor) {
+            return visitor.visitIndexExpr(this);
+        }
+
+        final Expr indexer;
+        final Expr index;
+        final Token bracket;
+    }
+
+    static class SetIndex extends Expr {
+        SetIndex(Expr indexer, Expr index, Token bracket, Expr value) {
+            this.indexer = indexer;
+            this.index = index;
+            this.bracket = bracket;
+            this.value = value;
+        }
+
+        @Override
+        <R> R accept(Visitor<R> visitor) {
+            return visitor.visitSetIndexExpr(this);
+        }
+
+        final Expr indexer;
+        final Expr index;
+        final Token bracket;
+        final Expr value;
     }
 
     static class Get extends Expr {
@@ -231,6 +270,19 @@ abstract class Expr {
 
         final Token operator;
         final Expr right;
+    }
+
+    static class Lyst extends Expr {
+        Lyst(List<Expr> items) {
+            this.items = items;
+        }
+
+        @Override
+        <R> R accept(Visitor<R> visitor) {
+            return visitor.visitLystExpr(this);
+        }
+
+        final List<Expr> items;
     }
 
     static class Variable extends Expr {

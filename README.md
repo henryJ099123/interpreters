@@ -12,8 +12,9 @@
         - input
     - *anonymous functions*
         - *fix the code to be cleaner for anonymous functions*
-    - *added `+=`, `/=`, `-=`, `*=`*
+    - *added `+=`, `/=`, `-=`, `\*=`*
     - *added errors for not changing code*
-    - add `+=`, `/=`, `-=`, `*=` for methods
-    - add static methods
+    - *add `+=`, `/=`, `-=`, `\*=` for methods*
+        - *add `++`/`--` for methods*
+    - *add static methods*
     - add getters and setters
