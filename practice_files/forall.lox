@@ -1,0 +1,25 @@
+var i = 10;
+forall(var i: [0, 1, 2, 3])
+	print i;
+print i;
+
+print "";
+print "--------";
+print "";
+
+forall(var c: "hello world") {
+	if(c == "w") continue;
+	if(c == "r") break;
+	print c;
+} aftereach {
+	print "asdf";
+} 
+
+print "";
+print "--------";
+print "";
+
+forall(var d: 123) {
+	print d;
+	print "this is an error";
+} 

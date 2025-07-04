@@ -1,0 +1,7 @@
+var s = "asdf";
+var t = [1, 2, 3];
+print length(t);
+print length(s);
+for(var i = 0; i < length(s); i++)
+	print s[i];
+s[0] = 123;

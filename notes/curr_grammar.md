@@ -5,7 +5,8 @@ funDecl -> "fun" function;
 function -> IDENTIFIER "(" parameters ")" block ;
 parameters -> IDENTIFER ("," IDENTIFIER)* ;
 varDecl -> "var" IDENTIFIER ("=" expression)? ";" ;
-statement -> exprStmt | printStmt | block | ifStmt | whileStmt | forStmt | breakStmt | continueStmt | returnStmt;
+statement -> exprStmt | printStmt | block | ifStmt | whileStmt | forStmt | breakStmt | continueStmt | returnStmt | forallStmt;
+forallStmt -> "forall" "(" IDENTIFIER ":" assign_or_condition ")" statement "aftereach" statement;
 returnStmt -> "return" expression? ";";
 breakStmt -> "break;"
 continueStmt -> "continue;"

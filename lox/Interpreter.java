@@ -44,6 +44,11 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 			sc.close();
 			this.isClosed = true;
 		} 
+
+		@Override
+		public String toString() {
+			return "<file " + this.name + " read>";
+		} 
 	} 
 
 	private static class LoxWriter extends FileWriter {
@@ -66,6 +71,11 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 		public void close() throws IOException {
 			super.close();
 			this.isClosed = true;
+		} 
+		
+		@Override
+		public String toString() {
+			return "<file " + this.name + " write>";
 		} 
 	} 
 
@@ -344,17 +354,40 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             while(isTruthy(evaluate(stmt.condition))) {
                 try {
                     execute(stmt.body);
-                    if(stmt.always_execute != null)
-                        execute(stmt.always_execute);
+                    if(stmt.always_execute != null) execute(stmt.always_execute);
                 } catch(ContinueException e) {
-                    if(stmt.always_execute != null)
-                        execute(stmt.always_execute);
+                    if(stmt.always_execute != null) execute(stmt.always_execute);
                 }
             }
         } catch(BreakException e) {}
 
         return null;
     }
+
+	@Override
+	public Void visitForallStmt(Stmt.Forall stmt) {
+		Object sequence = evaluate(stmt.sequence);
+		if(!(sequence instanceof LoxSequence))
+			throw new RuntimeError(stmt.indName, "Can't iterate over a non-sequence.");
+		try {
+			int i = 0;
+			while(i < ((LoxSequence) sequence).length()) {
+				Object value = ((LoxSequence) sequence).getItem(i);
+					// must be here
+					environment.assignAt(0, stmt.indName, value);
+				try {
+					execute(stmt.body);
+					if(stmt.aftereach != null) execute(stmt.aftereach);
+				} catch(ContinueException e) {
+					if(stmt.aftereach != null) execute(stmt.aftereach);
+				} finally {
+					i++;
+				} 
+			} 
+		} catch(BreakException e) {} 
+
+		return null;
+	} 
 
     @Override
     public Void visitBreakStmt(Stmt.Break stmt) {
@@ -449,6 +482,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 		Object index = evaluate(expr.index);
 		Object value = evaluate(expr.value);
 		int intIndex = checkIndexing(indexer, index, expr.bracket);
+		if(indexer instanceof LoxString)
+			throw new RuntimeError(expr.bracket, "Cannot set index of a string, strings are immutable.");
 		((LoxSequence) indexer).setItem(intIndex, value);
 		return value;
 	} 
@@ -586,7 +621,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             case PLUS:
                 if(left instanceof Double && right instanceof Double) 
                     return (double) left + (double) right;
-                else if ((left instanceof String && right instanceof Double) || (right instanceof String && left instanceof Double))
+                else if ((left instanceof LoxString && right instanceof Double) || (right instanceof LoxString && left instanceof Double))
                     return stringify(left) + stringify(right);
 				else if(left instanceof LoxList && right instanceof LoxList) {
 					List<Object> newlist = new ArrayList<>();
@@ -652,6 +687,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     // but that means just getting its value
     @Override
     public Object visitLiteralExpr(Expr.Literal expr) {
+		if(expr.value instanceof String)
+			return new LoxString((String) expr.value);
         return expr.value;
     }
     
@@ -710,7 +747,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return a.equals(b);
     }
 
-    private String stringify(Object object) {
+    static String stringify(Object object) {
         // if nil
         if(object == null) return "nil";
 
@@ -723,22 +760,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             }
             return text;
         }
-
-		if(object instanceof LoxList) {
-			String text = "[";
-			for(Object item: ((LoxList) object).list)
-				text += stringify(item) + ", ";
-			text = text.substring(0, text.length() - 2);
-			return text + "]";
-		} 
-
-		if(object instanceof LoxScanner) {
-			return "<file " + ((LoxScanner) object).getName() + " read>";
-		} 
-
-		if(object instanceof LoxWriter) {
-			return "<file " + ((LoxWriter) object).getName() + " write>";
-		}
 
         // if a string or a boolean
         return object.toString();

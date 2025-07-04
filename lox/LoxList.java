@@ -34,4 +34,19 @@ public class LoxList implements LoxSequence {
 	public int length() {
 		return list.size();
 	} 
+
+	@Override
+	public String toString() {
+		String text = "[";
+		for(Object item: this.list)
+			text += Interpreter.stringify(item) + ", ";
+		text = text.substring(0, text.length() - 2);
+		return text + "]";
+	} 
+
+	@Override
+	public boolean equals(Object other) {
+		if(!(other instanceof LoxList)) return false;
+		return this.list.equals(((LoxList) other).list);
+	} 
 } 

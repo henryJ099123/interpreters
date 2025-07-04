@@ -107,6 +107,7 @@ class Parser {
         if(match(IF)) return ifStatement();
         if(match(WHILE)) return whileStatement();
         if(match(FOR)) return forStatement();
+        if(match(FORALL)) return forallStatement();
         if(match(BREAK)) return breakStatement();
         if(match(CONTINUE)) return continueStatement();
         if(match(RETURN)) return returnStatement();
@@ -153,6 +154,23 @@ class Parser {
         }
         return new Stmt.While(condition, body, aftereach);
     }
+
+	private Stmt forallStatement() {
+		consume(LEFT_PAREN, "Expect '(' after 'forall'.");
+		consume(VAR, "Expect 'var' to declare representative of sequence in 'forall' statement.");
+		Token indName = consume(IDENTIFIER, "Expect some name to represent the sequence in 'forall' statemeht.");
+		consume(COLON, "Expect ':' between name and sequence in 'forall' statement.");
+		Expr sequence = assign_or_condition();
+		consume(RIGHT_PAREN, "Expect ')' after sequence in 'forall' statement.");
+		loop_depth++;
+		Stmt body = statement();
+		loop_depth--;
+		Stmt aftereach = null;
+		if(match(AFTEREACH)) {
+			aftereach = statement();
+		} 
+		return new Stmt.Block(Arrays.asList(new Stmt.Forall(indName, sequence, body, aftereach)));
+	} 
 
     private Stmt forStatement() {
         consume(LEFT_PAREN, "Expect '(' after 'for'.");

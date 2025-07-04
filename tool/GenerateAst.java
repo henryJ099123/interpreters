@@ -23,6 +23,7 @@ public class GenerateAst {
             "Function : Token name, Expr.Fun function",
             "Expression : Expr expression",
             "While : Expr condition, Stmt body, Stmt always_execute",
+			"Forall : Token indName, Expr sequence, Stmt body, Stmt aftereach",
             "If : Expr condition, Stmt ifTrue, Stmt ifFalse",
             "Print : Expr expression",
             "Return : Token keyword, Expr value",

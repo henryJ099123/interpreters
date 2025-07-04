@@ -10,6 +10,7 @@ abstract class Stmt {
         R visitFunctionStmt(Function stmt);
         R visitExpressionStmt(Expression stmt);
         R visitWhileStmt(While stmt);
+        R visitForallStmt(Forall stmt);
         R visitIfStmt(If stmt);
         R visitPrintStmt(Print stmt);
         R visitReturnStmt(Return stmt);
@@ -112,6 +113,25 @@ abstract class Stmt {
         final Expr condition;
         final Stmt body;
         final Stmt always_execute;
+    }
+
+    static class Forall extends Stmt {
+        Forall(Token indName, Expr sequence, Stmt body, Stmt aftereach) {
+            this.indName = indName;
+            this.sequence = sequence;
+            this.body = body;
+            this.aftereach = aftereach;
+        }
+
+        @Override
+        <R> R accept(Visitor<R> visitor) {
+            return visitor.visitForallStmt(this);
+        }
+
+        final Token indName;
+        final Expr sequence;
+        final Stmt body;
+        final Stmt aftereach;
     }
 
     static class If extends Stmt {
