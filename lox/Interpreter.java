@@ -3,14 +3,71 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Scanner;
+import java.io.FileWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 
 //actually going to implement *visitor* actions now
 //recall "Object" is root class of Lox types (and is thus return type <?>)
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     
     private static class BreakException extends RuntimeException {}
-    private static class ContinueException extends RuntimeException {}
+	private static class ContinueException extends RuntimeException {}
     private static class Exit extends RuntimeException {}
+	private static class IOError extends RuntimeException {
+		IOError(String msg) {super(msg);}
+	}
+
+	private static class LoxScanner {
+		private String name;
+		boolean isClosed = false;
+		private Scanner sc;
+
+		LoxScanner(File f) throws FileNotFoundException {
+			this.sc = new Scanner(f);
+			this.name = f.getName();
+		} 
+
+		String getName() {return name;}
+
+		String nextLine() {
+			return sc.nextLine();
+		} 
+
+		boolean hasNext() {
+			return sc.hasNext();
+		} 
+
+		void close() {
+			sc.close();
+			this.isClosed = true;
+		} 
+	} 
+
+	private static class LoxWriter extends FileWriter {
+		private String name;
+		boolean isClosed = false;
+
+		LoxWriter(File f) throws IOException {
+			super(f);
+			this.name = f.getName();
+		} 
+
+		LoxWriter(File f, boolean a) throws IOException {
+			super(f, a);
+			this.name = f.getName();
+		} 
+
+		String getName() {return name;}
+
+		@Override
+		public void close() throws IOException {
+			super.close();
+			this.isClosed = true;
+		} 
+	} 
 
     // instance of the variable whatnot
     public Environment globals = new Environment();
@@ -53,6 +110,141 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 				return null;
 			} 
 		}); 
+		globals.define("inputLine", new LoxCallable() {
+			@Override
+			public int arity() {return 0;}
+
+			@Override
+			public Object call(Interpreter interpreter, List<Object> arguments) {
+				String userinput = new Scanner(System.in).nextLine();
+				return userinput;
+			} 
+		});
+		globals.define("openForRead", new LoxCallable() {
+			@Override
+			public int arity() {return 1;}
+
+			@Override
+			public Object call(Interpreter interpreter, List<Object> arguments) {
+				if(!(arguments.get(0) instanceof String))
+					throw new IOError("File path must be a string and '" + stringify(arguments.get(0)) + "' is not.");
+				File f = new File((String) arguments.get(0));
+				if(!f.exists())
+					throw new IOError("File '" + stringify(arguments.get(0)) + "' does not exist.");
+				if(f.isDirectory())
+					throw new IOError("File '" + stringify(arguments.get(0)) + "' is a directory and cannot be read.");
+				try {
+					return new LoxScanner(f);
+				} catch(FileNotFoundException fnfe) {
+					throw new IOError("File '" + stringify(arguments.get(0)) + "' cannot be found.");
+				} 
+			} 
+		});
+		// will return next line until EOF
+		// at that point will then return null
+		globals.define("readLine", new LoxCallable() {
+			@Override
+			public int arity() {return 1;}
+			
+			@Override
+			public Object call(Interpreter interpreter, List<Object> arguments) {
+				if(!(arguments.get(0) instanceof LoxScanner))
+					throw new IOError("Must pass a file opened for reading to 'readLine'.");
+				LoxScanner sc = (LoxScanner) arguments.get(0);
+				if(sc.isClosed)
+					throw new IOError("Cannot read from a closed file.");
+				if(sc.hasNext())
+					return sc.nextLine();
+				return null;
+			} 
+		}); 
+		globals.define("openForWrite", new LoxCallable() {
+			@Override
+			public int arity() {return 1;} 
+
+			@Override
+			public Object call(Interpreter interpreter, List<Object> arguments) {
+				// check if valid file 
+				if(!(arguments.get(0) instanceof String))
+					throw new IOError("File path must be a string and '" + stringify(arguments.get(0)) + "' is not.");
+				File f = new File((String) arguments.get(0));
+				/*
+				if(!f.exists())
+					throw new IOError("File '" + stringify(arguments.get(0)) + "' does not exist or cannot be found.");
+				*/
+				if(f.isDirectory())
+					throw new IOError("File '" + stringify(arguments.get(0)) + "' is a directory and cannot be written.");
+				try {
+					return new LoxWriter(f);
+				} catch(IOException fnfe) {
+					throw new IOError("File '" + stringify(arguments.get(0)) + "' cannot be written.");
+				} 
+			} 
+		});
+		globals.define("openForAppend", new LoxCallable() {
+			@Override
+			public int arity() {return 1;} 
+
+			@Override
+			public Object call(Interpreter interpreter, List<Object> arguments) {
+				// check if valid file 
+				if(!(arguments.get(0) instanceof String))
+					throw new IOError("File path must be a string and '" + stringify(arguments.get(0)) + "' is not.");
+				File f = new File((String) arguments.get(0));
+				/*
+				if(!f.exists())
+					throw new IOError("File '" + stringify(arguments.get(0)) + "' does not exist or cannot be found.");
+				*/
+				if(f.isDirectory())
+					throw new IOError("File '" + stringify(arguments.get(0)) + "' is a directory and cannot be written.");
+				try {
+					return new LoxWriter(f, true);
+				} catch(IOException fnfe) {
+					throw new IOError("File '" + stringify(arguments.get(0)) + "' cannot be written.");
+				} 
+			} 
+
+		});
+		globals.define("write", new LoxCallable() {
+			@Override
+			public int arity() {return 2;}
+			
+			@Override
+			public Object call(Interpreter interpreter, List<Object> arguments) {
+				if(!(arguments.get(0) instanceof LoxWriter))
+					throw new IOError("Must pass a file opened for writing to 'write'.");
+				LoxWriter f = (LoxWriter) arguments.get(0);
+				if(f.isClosed)
+					throw new IOError("Cannot write to a closed file.");
+				try {
+					f.write(stringify(arguments.get(1)));
+				} catch(IOException e) {
+					throw new IOError("Cannot write to file '" + f.getName() + "'.");
+				} 
+				return null;
+			} 
+		});
+		globals.define("close", new LoxCallable() {
+			@Override
+			public int arity() {return 1;}
+
+			@Override
+			public Object call(Interpreter interpreter, List<Object> arguments) {
+				if(arguments.get(0) instanceof LoxWriter) {
+					try {
+						((LoxWriter) arguments.get(0)).close();
+						return null;
+					} catch(IOException e) {
+						throw new IOError("Cannot close file '" + ((LoxWriter) arguments.get(0)).getName() + "'.");
+					} 
+				} 
+				else if(arguments.get(0) instanceof LoxScanner) {
+					((LoxScanner) arguments.get(0)).close();
+					return null;
+				}
+				throw new IOError("Must pass an opened file to 'close'.");
+			} 
+		});
     }
 
     // way to interface the entire interpreter
@@ -236,7 +428,11 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 " arguments but got " + arguments.size() + " instead.");
         }
 
-        return function.call(this, arguments);
+		try {
+			return function.call(this, arguments);
+		} catch(IOError r) {
+			throw new RuntimeError(expr.paren, r.getMessage());
+		} 
     }
 
 	@Override
@@ -535,6 +731,14 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 			text = text.substring(0, text.length() - 2);
 			return text + "]";
 		} 
+
+		if(object instanceof LoxScanner) {
+			return "<file " + ((LoxScanner) object).getName() + " read>";
+		} 
+
+		if(object instanceof LoxWriter) {
+			return "<file " + ((LoxWriter) object).getName() + " write>";
+		}
 
         // if a string or a boolean
         return object.toString();

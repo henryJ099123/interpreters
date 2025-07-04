@@ -1,0 +1,7 @@
+var file = openForRead("~/Documents/Coding/interpreters/practice_files/break_continue.lox");
+var line = readLine(file);
+while(line) {
+	print line;
+	line = readLine(file);
+} 
+

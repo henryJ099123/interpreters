@@ -20,7 +20,7 @@ class Lister {
 	} 
 
 	incr(index) {
-		this.lister[index]++;
+		return ++this.lister[index];
 	} 
 } 
 
@@ -30,3 +30,11 @@ list.printself();
 list.incr(1);
 print list.get(1);
 
+print "------";
+
+var list2 = [1, "l", true, list.printself];
+var list3 = [17, list.incr];
+var combo = list2 + list3;
+print combo;
+combo[3]();
+print combo[5](3);

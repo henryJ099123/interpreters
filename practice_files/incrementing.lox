@@ -1,8 +1,15 @@
 var a = 5;
+print a;
 print a++;
 print a;
 print ++a;
 print a;
+
+{
+	var b;
+	b = 5;
+	print b;
+} 
 
 class A {
 	init(num) {
@@ -24,3 +31,14 @@ a.val /= 5;
 print a.val;
 a.val -= 10;
 print a.val;
+
+print "------";
+print "";
+
+var lst = [1, 2];
+print lst[0];
+print ++lst[0];
+print lst[0];
+print lst[0]++;
+print lst[0];
+print --lst[0];

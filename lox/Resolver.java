@@ -6,11 +6,15 @@ import java.util.Map;
 import java.util.Stack;
 
 class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
-	private final Interpreter interpreter;
-	private FunctionType currentFunction = FunctionType.NONE; // for returning outside a function
-	private ClassType currentClass = ClassType.NONE; // for returning outside a Class
-	private boolean isStatic = false;
-	
+	private enum FunctionType {
+		NONE, FUNCTION, INITIALIZER, METHOD
+	}
+
+	// i.e. the thing from above, but for classes instead (for `this`)
+	private enum ClassType {
+		NONE, CLASS, SUBCLASS
+	} 
+
 	private class VariableInfo {
 		Token token;
 		boolean was_defined;
@@ -23,6 +27,10 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 		}
 	}
 
+	private final Interpreter interpreter;
+	private FunctionType currentFunction = FunctionType.NONE; // for returning outside a function
+	private ClassType currentClass = ClassType.NONE; // for returning outside a Class
+	private boolean isStatic = false;
 	// lexical scopes act as a stack
 	// used only for local (block) scopes
 	private final Stack<Map<String, VariableInfo>> scopes = new Stack<>();
@@ -30,15 +38,6 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 	Resolver(Interpreter interpreter) {
 		this.interpreter = interpreter;
 	}
-
-	private enum FunctionType {
-		NONE, FUNCTION, INITIALIZER, METHOD
-	}
-
-	// i.e. the thing from above, but for classes instead (for `this`)
-	private enum ClassType {
-		NONE, CLASS, SUBCLASS
-	} 
 
 	@Override
 	public Void visitBlockStmt(Stmt.Block stmt) {
@@ -109,7 +108,6 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
 		if(stmt.superclass != null && stmt.name.lexeme.equals(stmt.superclass.name.lexeme)) {
 			Lox.error(stmt.superclass.name, "A class cannot inherit from itself.", "Semantic");
-			resolve(stmt.superclass);
 		} 
 		
 		if(stmt.superclass != null) {
@@ -124,7 +122,6 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
 		beginScope();
 		scopes.peek().put("this", new VariableInfo(stmt.name, true, true));
-		isStatic = true;
 
 		for(Stmt.Function method: stmt.methods) {
 			FunctionType declaration = FunctionType.METHOD;
@@ -133,12 +130,11 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 			resolveFunction(method.function, declaration);
 		}
 
-		isStatic = false;
 		endScope();
-
 		if(stmt.superclass != null) endScope();
 
 		beginScope();
+		isStatic = true;
 		scopes.peek().put("this", new VariableInfo(stmt.name, true, true));
 
 		for(Stmt.Function method: stmt.staticMethods) {
@@ -148,6 +144,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 			resolveFunction(method.function, declaration);
 		} 
 
+		isStatic = false;
 		endScope();
 		currentClass = enclosingClass;
 		return null;
@@ -378,5 +375,6 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 				return;
 			}
 		}
+		//Lox.error(name, "Variable '" + name.lexeme + "' is used but never declared.", "Semantic");
 	}
 }

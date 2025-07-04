@@ -460,6 +460,11 @@ class Parser {
 			else if(right instanceof Expr.Get)
 				return new Expr.Set(((Expr.Get) right).object, ((Expr.Get) right).name,
 					new Expr.Binary(right, new_operator, new Expr.Literal(1.0)));
+			else if(right instanceof Expr.Index) {
+				Expr.Index exprIndex = (Expr.Index) right;
+				return new Expr.SetIndex(exprIndex.indexer, exprIndex.index, exprIndex.bracket,
+						new Expr.Binary(right, new_operator, new Expr.Literal(1.0)));
+			} 
 			throw error(current, "Expect assignable value for increment or decrement.");
         }
         return call();

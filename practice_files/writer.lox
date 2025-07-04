@@ -1,0 +1,9 @@
+var f = openForWrite("/Users/henryjochaniewicz/Documents/Coding/interpreters/practice_files/helloworld.txt");
+write(f, "hello world");
+close(f);
+f = openForAppend("/Users/henryjochaniewicz/Documents/Coding/interpreters/practice_files/helloworld.txt");
+write(f, " and hello again.");
+close(f);
+f = openForRead("/Users/henryjochaniewicz/Documents/Coding/interpreters/practice_files/helloworld.txt");
+print readLine(f);
+close(f);
