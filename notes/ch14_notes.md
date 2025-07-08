@@ -94,3 +94,44 @@ instead of **parser** $\rightarrow$ **syntax tree** $\rightarrow$ **interpreter*
         - mirrors the `AstPrinter` class from jlox
 - we use `disassembleChunk` to disassemble all the instructions in the chunk
     - the other function `disassembleInstruction` disassembles each instruction in the chunk
+
+## Constants
+
+- can store *code* in chunks, but need to store *data* as well
+    - very Von Neumann
+    - no syntax tree, so we need to represent the values somehow
+
+### Representing values
+
+- use `typedef` on `double` in case we want to replace our representation of numbers in Lox with something else in C
+- for small values, instruction sets tend to store the value in the code stream immediately after the opcode, called **immediate instructions**
+    - no good for strings, so those get stored in the data section of memory for regular compilation
+    - the JVM has a **constant pool** with each compiled class
+- for Lox, we'll do that: have a "constant pool" for all the literals
+    - i.e. every chunk will carry a alist of all the literals it has
+    - immediates also run into problems with alignment!
+
+### Value arrays
+
+- the constant pool must be dynamic
+
+### Constant instructions
+
+- compiled data/constants needs to be *executed* as well as *stored*
+    - need to know when to produce them, so new instruction type
+- a single opcode isn't enough to know which constant to load...
+    - so, the instruction is allowed to have **operands**, which is binary data *immediately after* the opcode to parameterize the instruction
+- we need to specify the operands' format, called the **instruction format**
+    - wow, this is literally just comp arch
+- for the debugging, we print the opcode, and then the index, and then the actual value
+
+## Line information
+
+- Chunks contain almost all of the info the runtime needs from the source code
+    - we need to store the line number too, though, in case of an error
+    - in jlox, these were stored in tokens
+- given a bytecode instruction, we need to know the line of the user's source program
+    - Nystrom's simple but inefficient approach: store a separate array of integers that parallel the bytecode
+    - while very simple, it at least keeps the line information in a *separate array* from the bytecode
+        - line numbers only needed at runtime, so it shouldn't take up unneeded cache space
+- so, with these arrays, we've boiled down the family of AST trees dramatically
