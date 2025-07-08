@@ -28,11 +28,11 @@ int disassembleInstruction(Chunk* chunk, int offset) {
 	printf("%04d ", offset);
 
 	//i.e. if the lines are the same, don't make a brand new line
-	if(offset > 0 && chunk->lines[offset] == chunk->lines[offset-1]) {
+	// if(offset > 0 && chunk->lines[offset] == chunk->lines[offset-1])
+	if(offset > 0 && getLine(chunk, offset) == getLine(chunk, offset-1))
 		printf("   | ");
-	} else {
-		printf("%4d ", chunk->lines[offset]);
-	} 
+	else 
+		printf("%4d ", getLine(chunk, offset));
 
 	uint8_t instruction = chunk->code[offset];
 	switch(instruction) {
