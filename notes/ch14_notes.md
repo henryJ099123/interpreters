@@ -135,3 +135,33 @@ instead of **parser** $\rightarrow$ **syntax tree** $\rightarrow$ **interpreter*
     - while very simple, it at least keeps the line information in a *separate array* from the bytecode
         - line numbers only needed at runtime, so it shouldn't take up unneeded cache space
 - so, with these arrays, we've boiled down the family of AST trees dramatically
+
+## Design note: test your language
+
+- it's extremely important to *test* your language
+    - have a comprehensive test-suite
+- why?
+    - users expect a working programming language
+        - last thought is the compiler is bad
+    - language implementation is *very interconnected*
+    - input to a language is *combinatorial*, meaning an infinite number of programs
+    - language implementations are very complex
+- what kind of tests? often: "language tests", programs written in the language along with expected outputs/errors
+- why these are nice:
+    - tests aren't coupled to any internal architectural decisions
+    - can use the same tests for multiple language implementations
+    - tests can be terse and easy to read/maintain
+- why these aren't nice:
+    - end-to-end tests help determine *if* there's a bug but not where in the code
+    - crafting a good test is hard, especially for an obscure corner of the implementation
+    - overhead can be high to actually execute the tests
+
+## Notes from the exercises
+
+- did not do binary search when finding a line number in case instructions are added out of order
+- drawbacks of adding a `OP_CONSTANT_LONG` for when the number of constants exceeds 256:
+    - makes interpreter more complex
+    - uses up an opcode, which might be extremely valuable to the language if it needs them
+    - it *might* slow down the interpreter based on cache locality
+        - because new function means new code to load in
+- none of these are fatal...so not a bad idea

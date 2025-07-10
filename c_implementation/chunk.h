@@ -6,6 +6,7 @@
 
 // each instruction has 1-byte opcode
 typedef enum {
+	OP_CONSTANT_LONG,
 	OP_CONSTANT,
 	OP_RETURN,
 } OpCode;
@@ -25,6 +26,7 @@ void initChunk(Chunk* chunk);
 void freeChunk(Chunk* chunk);
 void writeChunk(Chunk* chunk, uint8_t byte, int line);
 int addConstant(Chunk* chunk, Value value);
+void writeConstant(Chunk* chunk, Value value, int line);
 int getLine(Chunk* chunk, int index);
 
 #endif

@@ -58,6 +58,21 @@ void writeChunk(Chunk* chunk, uint8_t byte, int line) {
 	chunk->lines[chunk->lcount - 1] = chunk->count - 1; // set offset herey
 } 
 
+void writeConstant(Chunk* chunk, Value value, int line) {
+	int constant = addConstant(chunk, value);
+	if(chunk->constants.count < 256) {
+		writeChunk(chunk, OP_CONSTANT, line);
+		writeChunk(chunk, constant, line);
+		return;
+	} 
+	// will store in big-endian fashion
+	writeChunk(chunk, OP_CONSTANT_LONG, line);
+	writeChunk(chunk, (uint8_t) constant >> 16, line);
+	writeChunk(chunk, (uint8_t) (constant >> 8) & 0xFF, line);
+	writeChunk(chunk, (uint8_t) constant & 0xFF, line);
+
+} 
+
 int getLine(Chunk* chunk, int index) {
 
 	int i = 0;

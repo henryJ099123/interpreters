@@ -181,3 +181,11 @@ Anything italicized has been implemented
         - *add `++`/`--` for methods*
     - *add static methods*
     - add getters and setters
+
+## clox
+
+### TODO
+
+- implement my own version of `malloc`
+- *implement faster line number implementation using run-length encoding*
+- *implement `OP_CONSTANT_LONG`*
