@@ -123,15 +123,15 @@ var c = a + b;
 ```
 - this will (for us) be:
 ```
-load <a>
-load <b>
+load &lt;a&gt;
+load &lt;b&gt;
 add
-store <c>
+store &lt;c&gt;
 ```
 - four separate instructions and seven bytes of code (four opcodes, three operands)
 - register based encoding would look like this:
 ```
-add <a> <b> <C>
+add &lt;a&gt; &lt;b&gt; &lt;c&gt;
 ```
 - literally just an assembly thing
 - reads directly from `a` and `b` and store it in `c`
@@ -139,3 +139,19 @@ add <a> <b> <C>
     - net win despite the increase in complexity
 - Lua's transition to this style from the stack-based style imrpoved their speed
 - we are doing stack-based because it's simpler and more widespread in literature and community
+
+## Exercises
+
+1. in broad strokes:
+    - ld 1, ld 2, multiply, ld 3, add
+    - ... skip to the last
+    - ld 1, ld 2, ld 3, multiply, add, ld 4, ld 5, negate, divide, subtract
+2. answer:
+    - eliminating negate: ld 4, ld 0, ld 3, subtract, ld 0, ld 2, subtract, multiply, add
+    - eliminating subtract: ld 4, ld 3, negate, ld 2, negate, multiply, add
+    - I'd say it doesn't *not* make sense, but I'd probably get rid of OP\_SUBTRACT if I had to pick
+    - maybe add instructions for incrementing or decrementing?
+3. The VM is kind of small...so no check that a value overflows it
+    - could crash the VM...so dynamically grow the stack
+    - I know how to do this (add ptr to max capacity...check if equal...allocate more space), but I don't really want to? Feels like an annoying idea
+4. Interpreting `OP_NEGATE` pops the operand, negates the value, and pushes the result, but this is slow...optimize it

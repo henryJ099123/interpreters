@@ -2,6 +2,8 @@
 #include "chunk.h"
 #include "debug.h"
 #include "vm.h"
+#include <time.h>
+#include <stdio.h>
 
 int main(int argc, const char* argv[]) {
 	initVM();
@@ -32,9 +34,15 @@ int main(int argc, const char* argv[]) {
 	for(int i = 0; i < 300; i++)
 		writeConstant(&chunk, (Value) i, i);
 	*/
-	disassembleChunk(&chunk, "test chunk");	
+	for(int i = 0; i < 100000 ; i++)
+		writeChunk(&chunk, OP_NEGATE, 123);
+
+	clock_t start = clock();
+//	disassembleChunk(&chunk, "test chunk");	
 	interpret(&chunk);
 	freeVM();
 	freeChunk(&chunk);
+	clock_t end = clock();
+	printf("s %g\n", (float)(end-start)/CLOCKS_PER_SEC);
 	return 0;
 } 
