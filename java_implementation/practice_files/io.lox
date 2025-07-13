@@ -1,4 +1,4 @@
-var file = openForRead("~/Documents/Coding/interpreters/practice_files/break_continue.lox");
+var file = openForRead("/Users/henryjochaniewicz/Documents/Coding/interpreters/java_implementation/practice_files/break_continue.lox");
 var line = readLine(file);
 while(line) {
 	print line;

@@ -136,9 +136,9 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
 			@Override
 			public Object call(Interpreter interpreter, List<Object> arguments) {
-				if(!(arguments.get(0) instanceof String))
+				if(!(arguments.get(0) instanceof LoxString))
 					throw new IOError("File path must be a string and '" + stringify(arguments.get(0)) + "' is not.");
-				File f = new File((String) arguments.get(0));
+				File f = new File(((LoxString) arguments.get(0)).toString());
 				if(!f.exists())
 					throw new IOError("File '" + stringify(arguments.get(0)) + "' does not exist.");
 				if(f.isDirectory())
@@ -175,9 +175,9 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 			@Override
 			public Object call(Interpreter interpreter, List<Object> arguments) {
 				// check if valid file 
-				if(!(arguments.get(0) instanceof String))
+				if(!(arguments.get(0) instanceof LoxString))
 					throw new IOError("File path must be a string and '" + stringify(arguments.get(0)) + "' is not.");
-				File f = new File((String) arguments.get(0));
+				File f = new File(((LoxString) arguments.get(0)).toString());
 				/*
 				if(!f.exists())
 					throw new IOError("File '" + stringify(arguments.get(0)) + "' does not exist or cannot be found.");
@@ -198,9 +198,9 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 			@Override
 			public Object call(Interpreter interpreter, List<Object> arguments) {
 				// check if valid file 
-				if(!(arguments.get(0) instanceof String))
+				if(!(arguments.get(0) instanceof LoxString))
 					throw new IOError("File path must be a string and '" + stringify(arguments.get(0)) + "' is not.");
-				File f = new File((String) arguments.get(0));
+				File f = new File(((LoxString) arguments.get(0)).toString());
 				/*
 				if(!f.exists())
 					throw new IOError("File '" + stringify(arguments.get(0)) + "' does not exist or cannot be found.");
