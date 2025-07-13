@@ -622,13 +622,17 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 if(left instanceof Double && right instanceof Double) 
                     return (double) left + (double) right;
                 else if ((left instanceof LoxString && right instanceof Double) || (right instanceof LoxString && left instanceof Double))
-                    return stringify(left) + stringify(right);
+                    return loxStringify(stringify(left) + stringify(right));
 				else if(left instanceof LoxList && right instanceof LoxList) {
 					List<Object> newlist = new ArrayList<>();
 					newlist.addAll(((LoxList) left).list);
 					newlist.addAll(((LoxList) right).list);
 					return new LoxList(newlist);
 				} 
+				else if(left instanceof LoxString && right instanceof LoxString)
+					return loxStringify(stringify(left) + stringify(right));
+				System.out.println(left.getClass());
+				System.out.println(right.getClass());
                 throw new RuntimeError(expr.operator, "Invalid operands.");
             case STAR:
                 checkNumberOperands(expr.operator, left, right);
@@ -764,4 +768,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         // if a string or a boolean
         return object.toString();
     }
+
+	static LoxString loxStringify(Object object) {
+		return new LoxString(stringify(object));
+	} 
 }
