@@ -74,7 +74,7 @@ static Token errorToken(const char* message) {
 	// this "lexeme" is the error message
 	token.start = message;
 	token.length = (int) strlen(message);
-	token.line scanner.line;
+	token.line = scanner.line;
 	return token;
 } 
 
@@ -191,8 +191,9 @@ static Token string() {
 
 
 Token scanToken() {
+	skipWhitespace();
 	scanner.start = scanner.current;
-	if(sAtEnd()) return makeToken(TOKEN_EOF);
+	if(isAtEnd()) return makeToken(TOKEN_EOF);
 
 	char c = advance();
 	if(isAlpha(c)) return identifier();
