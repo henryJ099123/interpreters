@@ -189,3 +189,5 @@ Anything italicized has been implemented
 - implement my own version of `malloc`
 - *implement faster line number implementation using run-length encoding*
 - *implement `OP_CONSTANT_LONG`*
+- *implement `/* */`*
+- implement string interpolation with `${...}` syntax
