@@ -191,3 +191,4 @@ Anything italicized has been implemented
 - *implement `OP_CONSTANT_LONG`*
 - *implement `/* */`*
 - implement string interpolation with `${...}` syntax
+- fix the weird negation bug thing, see 17.4.3 comment

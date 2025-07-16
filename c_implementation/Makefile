@@ -3,6 +3,7 @@ CFLAGS= -Wall
 EX= cloxExec
 SOURCES=$(wildcard *.c)
 OBJS= $(SOURCES:.c=.o)
+COMMON= common.h
 
 all: $(EX)
 
@@ -11,9 +12,11 @@ clean:
 	rm *.o
 
 $(EX): $(OBJS)
-	$(CC) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@
 
 # anything that starts with .o: compile it first
-%.o: %.c %.h
+%.o: %.c %.h $(COMMON)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# if the .h files change, change the respective ones
+# %.c: %.h
