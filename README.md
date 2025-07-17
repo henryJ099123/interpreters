@@ -192,3 +192,4 @@ Anything italicized has been implemented
 - *implement `/* */`*
 - implement string interpolation with `${...}` syntax
 - fix the weird negation bug thing, see 17.4.3 comment
+- add the `?:` support

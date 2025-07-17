@@ -3,7 +3,39 @@
 
 #include "common.h"
 
-typedef double Value;
+// enum for types of values the VM supports
+typedef enum {
+	VAL_BOOL,
+	VAL_NIL,
+	VAL_NUMBER,
+} ValueType;
+
+// field for type and field for union of all other values
+// way to check types and also hold any kind of thing
+typedef struct {
+	ValueType type;
+	union {
+		bool boolean;
+		double number;
+	} as;
+} Value;
+
+/***** check type *****/
+// this is what that `type` field is for!
+#define IS_BOOL(value) ((value).type == VAL_BOOL)
+#define IS_NIL(value) ((value).type == VAL_NIL)
+#define IS_NUMBER(value) ((value).type == VAL_NUMBER)
+
+/***** LOX -> C *****/
+// given a Value (of correct type), it's unwrapped to the C value
+#define AS_BOOL(value) ((value).as.boolean)
+#define AS_NUMBER(value) ((value).as.number)
+
+/***** C -> LOX *****/
+// returns Value structs that properly take the correct thing
+#define BOOL_VAL(value) 	((Value){VAL_BOOL, {.boolean = value}})
+#define NIL_VAL				((Value){VAL_NIL, {.number=0}})
+#define NUMBER_VAL(value) 	((Value){VAL_NUMBER, {.number=value}})
 
 typedef struct {
 	int capacity;
@@ -11,6 +43,7 @@ typedef struct {
 	Value* values;
 } ValueArray;
 
+bool valuesEqual(Value a, Value b);
 void initValueArray(ValueArray* array);
 void freeValueArray(ValueArray* array);
 void writeValueArray(ValueArray* array, Value value);

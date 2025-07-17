@@ -8,8 +8,8 @@ COMMON= common.h
 all: $(EX)
 
 clean:
-	rm $(EX)
-	rm *.o
+	rm -f $(EX)
+	rm -f *.o
 
 $(EX): $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $@

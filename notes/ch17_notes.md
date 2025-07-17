@@ -100,6 +100,21 @@
 - add support for dumping chunk (seeing print output)
 - omg it works
 
+## Design note: it's just parsing
+
+This is apparently an unpopular opinion from Nystrom.
+- supposedly, *parsing doesn't matter*
+- recently parsing and parsers has been taken very seriously
+    - compilers got into compiler-compilers
+    - functional programmers into prase combinators
+    - mathematicians and algorithmic analyzers prove time/memory usage for parsing techniques
+        - complexity and stuff
+- important because implementation of a language shouldn't take an eternity
+    - also intellectually interesting
+- if the goal is just to implement a language, none of that particularly matters
+    - time that doesn't add value to the user's life
+- take time to improve compiler error messages instead and good error handling
+
 ## Challenges
 
 1. write a trace of what happens when parsing:
@@ -125,3 +140,33 @@
     - then that `parsePrecedence` returns, back to the one which called `unary` on this `-`, andit returns too
     - then the `binary` emits the proper bytecode for subtract and returns
     - and then everything returns out since we've reached EOF
+A little cleaner:
+```
+- expression
+||- parsePrecedence(PREC_ASSIGNMENT)
+||||- grouping()
+||||||- expression()
+||||||||- parsePrecedence(PREC_ASSIGNMENT)
+||||||||||- unary()
+||||||||||||- parsePrecedence(PREC_UNARY)
+||||||||||||||- number()
+||||||||||- binary(ADD)
+||||||||||||- parsePrecedence(PREC_FACTOR)
+||||||||||||||- number()
+||||- binary(STAR)
+||||||- parsePrecedence(PREC_|one|higher|than|factor)
+||||||||- number()
+||||- binary(MINUS)
+||||||- parsePrecedence(PREC_FACTOR)
+||||||||- unary()
+||||||||||- parsePrecedence(PREC_UNARY)
+||||||||||||- number()
+```
+ 
+2. The ParseRule rule for `TOKEN-MINUS` has both prefix and infix function pointers, because it's both. What other tokens can be used like this in Lox, and what about for other languages?
+    - Lox also uses `(` both for grouping (prefix) and infix (invoking a function)
+    - `[` in many languages for declaring a list and as a subscript operator
+    - `+` to indicate a positive number
+    - `*` to indicate pointer everything in C
+    - `&` in C for both bitwise and as well as address of
+3. "Minfix" expressions have more than two operands separated by tokens. C's "ternary" operator `?:` is the quintessential example. Add support in the compiler for it, but do not have to generate any bytecode.

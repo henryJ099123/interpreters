@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdio.h>
 #include "vm.h"
 #include "common.h"
@@ -10,6 +11,23 @@ VM vm;
 static void resetStack() {
 	// move stack ptr all the way to the beginning
 	vm.stackTop = vm.stack;
+} 
+
+// declaring our own variadic function!
+static void runtimeError(const char* format, ...) {
+	// variadic function whatnot
+	va_list args;
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+	fputs("\n", stderr);
+
+	// print line information
+	// subtract 1 because the failing instruction is one before the instruction ip points at
+	size_t instruction = vm.ip - vm.chunk->code - 1;
+	int line = getLine(vm.chunk, instruction);
+	fprintf(stderr, "[line %d] in script\n", line);
+	resetStack();
 } 
 
 void initVM() {
@@ -35,6 +53,17 @@ Value pop() {
 	return *vm.stackTop;
 } 
 
+// look as far into the stack as desired
+// need to subtract by 1 because this is the top of the stack
+static Value peek(int distance) {
+	return vm.stackTop[-1 - distance];
+} 
+
+// only things that are false are nil and the actual value false
+static bool isFalsey(Value value) {
+	return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
+} 
+
 // the heart and soul of the virtual machine
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++) // advance!
@@ -42,11 +71,16 @@ static InterpretResult run() {
 #define READ_LONG_CONSTANT() (vm.chunk->constants.values[ 0x00FFFFFF & \
 		((READ_BYTE() << 16) | (READ_BYTE() << 8) | (READ_BYTE()))])
 // need the `do`...`while` to force adding a semicolon at the end
-#define BINARY_OP(op) \
+// this is...quite the macro. notice the wrapper to use is passed as a macro param
+#define BINARY_OP(valueType, op) \
 	do { \
-		double b = pop(); \
-		double a = pop(); \
-		push(a op b); \
+		if(!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
+			runtimeError("Operands must be numbers."); \
+			return INTERPRET_RUNTIME_ERROR; \
+		} \
+		double b = AS_NUMBER(pop()); \
+		double a = AS_NUMBER(pop()); \
+		push(valueType(a op b)); \
 	} while(false)
 
 	for(;;) {
@@ -74,13 +108,31 @@ static InterpretResult run() {
 				printf("\n");
 				break;
 			} 
+			case OP_NIL: push(NIL_VAL); break;
+			case OP_TRUE: push(BOOL_VAL(true)); break;
+			case OP_FALSE: push(BOOL_VAL(false)); break;
+			case OP_EQUAL: {
+				Value b = pop();
+				Value a = pop();
+				push(BOOL_VAL(valuesEqual(a, b)));
+				break;
+		    } 
+			case OP_GREATER: BINARY_OP(BOOL_VAL, >); break;
+			case OP_LESS: BINARY_OP(BOOL_VAL, <); break;
+			case OP_NOT:
+				push(BOOL_VAL(isFalsey(pop()))); break;
 			// firsts pops off the value; then negates; then pops
 			case OP_NEGATE: 
-				vm.stackTop[-1] *= -1; break;
-			case OP_ADD: BINARY_OP(+); break;
-			case OP_SUBTRACT: BINARY_OP(-); break;
-			case OP_MULTIPLY: BINARY_OP(*); break;
-			case OP_DIVIDE: BINARY_OP(/); break;
+				if(!IS_NUMBER(peek(0))) {
+					runtimeError("Operand must be a number.");
+					return INTERPRET_RUNTIME_ERROR;
+				} 
+				push(NUMBER_VAL(-AS_NUMBER(pop()))); break;
+				// vm.stackTop[-1] = NUMBER_VAL(-AS_NUMBER(vm.stackTop[-1])); break;
+			case OP_ADD: BINARY_OP(NUMBER_VAL, +); break;
+			case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
+			case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
+			case OP_DIVIDE: BINARY_OP(NUMBER_VAL, /); break;
 			case OP_RETURN: {
 				// for now, just print the last thing on the stack
 				printValue(pop());
