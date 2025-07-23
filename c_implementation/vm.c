@@ -72,6 +72,12 @@ static void concatenate() {
 	ObjString* b = AS_STRING(pop());
 	ObjString* a = AS_STRING(pop());
 
+	ObjString* result = makeString(a->length + b->length);
+	memcpy(result->chars, a->chars, a->length);
+	memcpy(result->chars + a->length, b->chars, b->length);
+	result->chars[result->length] = '\0';
+
+/*
 	// dynamically make new string
 	int length = a->length + b->length;
 	char* chars = ALLOCATE(char, length+1);
@@ -82,6 +88,7 @@ static void concatenate() {
 	// use `takeString` here because the chars are already dynamically allocated
 	// no need to copy them
 	ObjString* result = takeString(chars, length);
+*/
 	push(OBJ_VAL(result));
 } 
 

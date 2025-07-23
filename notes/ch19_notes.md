@@ -113,11 +113,15 @@ in a single contiguous allocation.
     - this doesn't seem *terribly* difficult...except for one small issue:
     - I don't believe there's an easy way to give away a pointer to a string
     - i.e. the `takeString` method just goes away
+    - which it does! And now it is done
 2. In creating the ObjString for each literal, the characters are copied onto the heap.
 So, in freeing the string, we can free the characters too.
 To save more memory, we could instead track which ObjStrings *own* their character array
 and which are "constant strings" that just point back to their original source string
 (or to some non-freeable location). Add support for this.
+    - This...feels almost like...a waste of time?
+    - It's just a bunch of small changes?
+    - It doesn't even really work when you mix in number 1...which I've already done...
 3. If Lox was your language, what would you have it do when using `+` with a string operand and some other type?
     - well, I think I'd just turn the other thing into a string and then append it.
     - C treats them as numbers and just performs arithmetic
