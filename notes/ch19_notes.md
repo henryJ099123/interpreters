@@ -73,4 +73,53 @@ This will create objects for `"st"`, then `"ri"`, then `"stri"`, then `"ng"`, an
 - we use `reallocate` excessively because it helps the VM track how much memory is still being used
 - this means the program will free everything when it needs to at the end, but nothing dynamically in the meantime
 
+## Design Note: String encoding
 
+- String encoding can be kind of...difficult to handle
+- What do we call a single "character"?
+    - C uses ASCII, but that gives no option for accents or funky character stuff
+    - Unicode was next with tons of **code points** that continued to grow until it now includes things like emojis and whatnot, in 16 bits
+        - handled some gylphs by **combining characters** (e.g. accents on subsequent characters)
+    - if we combine characters...how does indexing work? Are they considered separate? United?
+        - united, they're called an **extended grapheme cluster**
+- How is a single unit represented in memory?
+    - ASCII gets a single byte (and leaves the high bit unused)
+    - Unicode has several common encodings
+        - UTF-16 was good for putting things in 16bits, but when it overflowed, it led to *surrogate pairs* of 16 bits to represent a single code point
+        - UTF-32 uses 32 bits for each "code point"
+    - UTF-8 is apparently the most complex: it uses a variable number of bytes to encode a code point
+        - this means it is not possible to directly index into the string, must walk it
+- these differences are actively challenging. Python switching its encoding from Python 2 to 3 was emblematic of this
+- pros and cons:
+    - ASCII is memory efficient and fast, but if you don't use the English or latin alphabet, good luck
+    - UTF-32 is fast but wastes a lot of memory
+    - UTF-8 is memory efficient and supports the entire Unicode range but the variable-length encoding makes arbitrary indexing slow
+    - UTF-16 is apparently the worst: less memory efficient but still variable-length encoding
+- one option: support all the Unicode code points and internally select an encoding for each string based on its contents
+    - really complex and hard to implement and debug
+    - string serialization between systems gets really annoying
+    - users need to understand the APIs and how to use which one
+    - used in Swift and Raku
+- compromise: always encode with UTF-8 and allow third-party stuff for other encodings
+    - less Latin-centric and not more complex, but no fast direct indexing
+- Nystrom would go with the maximal approach
+
+## Exercises
+
+1. Each string requires two separate dynamic allocations: one for the ObjString and second for the char array.
+This also means accessing the actual string requires *two* pointer indirections (cache unhappy).
+Use **flexible array members** to store the ObjString and its character array 
+in a single contiguous allocation.
+    - this doesn't seem *terribly* difficult...except for one small issue:
+    - I don't believe there's an easy way to give away a pointer to a string
+    - i.e. the `takeString` method just goes away
+2. In creating the ObjString for each literal, the characters are copied onto the heap.
+So, in freeing the string, we can free the characters too.
+To save more memory, we could instead track which ObjStrings *own* their character array
+and which are "constant strings" that just point back to their original source string
+(or to some non-freeable location). Add support for this.
+3. If Lox was your language, what would you have it do when using `+` with a string operand and some other type?
+    - well, I think I'd just turn the other thing into a string and then append it.
+    - C treats them as numbers and just performs arithmetic
+    - Java does this
+    - Python throws an error, you have to explicitly type cast
