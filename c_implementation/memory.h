@@ -2,6 +2,12 @@
 #define clox_memory_h
 
 #include "common.h"
+#include "object.h"
+
+#define ALLOCATE(type, count) \
+	(type*) reallocate(NULL, 0, sizeof(type) * (count))
+
+#define FREE(type, pointer) reallocate(pointer, sizeof(type), 0)
 
 // this is a macro function. use \ to do newlines in one.
 // I'm fairly certain macros treat things as if you transplanted them there,
@@ -18,5 +24,6 @@
 	reallocate(pointer, sizeof(type) * (count), 0)
 
 void* reallocate(void* pointer, size_t oldSize, size_t newSize);
+void freeObjects();
 
 #endif

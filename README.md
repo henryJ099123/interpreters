@@ -193,3 +193,20 @@ Anything italicized has been implemented
 - implement string interpolation with `${...}` syntax
 - fix the weird negation bug thing, see 17.4.3 comment
 - add the `?:` support
+    - add the syntax compiler for it
+    - *add actual VM support*
+- lists
+- indexing
+- the modulus `%`
+- syntactic sugars:
+    - pre- and post-increment and decrement
+    - `+=` and the like
+- `break`
+- `continue`
+- file input and output
+- user input
+- static methods
+- `exit` for the REPL
+- `forall` loops
+- the `aftereach` I had implemented for jlox
+- anonymous functions `fun () {...}`
