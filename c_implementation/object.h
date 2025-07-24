@@ -25,13 +25,14 @@ struct Obj {
 struct ObjString {
 	Obj obj;
 	int length; // convenient for not walking the whole string
-	char chars[];
+	uint32_t hash;
+	char* chars;
 };
 
 
-//ObjString* takeString(char* chars, int length);
-ObjString* makeString(int length);
-ObjString* copyString(const char* chars, int length);
+ObjString* takeString(char* chars, int length);
+ObjString* copyString(const char* chars, int length); 
+uint32_t hashString(const char* key, int length);
 void printObject(Value value);
 
 // separate function because we need `value` twice,

@@ -3,6 +3,7 @@
 
 #include "chunk.h"
 #include "value.h"
+#include "table.h"
 
 // fixed size stack, for now
 #define STACK_MAX 256
@@ -12,6 +13,7 @@ typedef struct {
 	uint8_t* ip; // faster to deref a ptr
 	Value stack[STACK_MAX];
 	Value* stackTop; // ptr to top of stack
+	Table strings;
 	Obj* objects;
 } VM;
 

@@ -20,13 +20,11 @@ static void freeObject(Obj* object) {
 	switch(object->type) {
 		case OBJ_STRING: {
 			ObjString* string = (ObjString*) object;
-			/*
 			// free whatever's been allocated
 			FREE_ARRAY(char, string->chars, string->length + 1);
 			// have to free the actual entire object
 			FREE(ObjString, object);
-			*/
-			reallocate(object, sizeof(ObjString) + sizeof(char)*(string->length + 1), 0);
+			//reallocate(object, sizeof(ObjString) + sizeof(char)*(string->length + 1), 0);
 
 			break;
 		} 

@@ -36,9 +36,11 @@ static void runtimeError(const char* format, ...) {
 void initVM() {
 	resetStack();
 	vm.objects = NULL;
+	initTable(&vm.strings);
 } 
 
 void freeVM() {
+	freeTable(&vm.strings);
 	freeObjects();
 } 
 
@@ -72,12 +74,16 @@ static void concatenate() {
 	ObjString* b = AS_STRING(pop());
 	ObjString* a = AS_STRING(pop());
 
+	// this works if the string is always new...
+	// but no good if it already does.
+	/*
 	ObjString* result = makeString(a->length + b->length);
 	memcpy(result->chars, a->chars, a->length);
 	memcpy(result->chars + a->length, b->chars, b->length);
 	result->chars[result->length] = '\0';
+	result->hash = hashString(result->chars, result->length);
+	*/
 
-/*
 	// dynamically make new string
 	int length = a->length + b->length;
 	char* chars = ALLOCATE(char, length+1);
@@ -85,10 +91,14 @@ static void concatenate() {
 	memcpy(chars + a->length, b->chars, b->length);
 	chars[length] = '\0';
 
+	/*
+	// have to use copyString, because of the ways strings are stored
+	ObjString* result = copyString(chars, length);
+	*/
+
 	// use `takeString` here because the chars are already dynamically allocated
 	// no need to copy them
 	ObjString* result = takeString(chars, length);
-*/
 	push(OBJ_VAL(result));
 } 
 
@@ -122,6 +132,14 @@ static InterpretResult run() {
 		printf("\n");
 		// recall that this instruction takes an offset --> ptr math
 		disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code));
+		/*
+		printf("~~hash table of strs~~\n");
+		for(int i = 0; i < vm.strings.capacity; i++) {
+			if(vm.strings.entries[i].key != NULL)
+				printf("%d %d %s\n", i, vm.strings.entries[i].key->hash, vm.strings.entries[i].key->chars);
+		} 
+		printf("~~end~~\n");
+		*/
 #endif
 		uint8_t instruction;
 		switch(instruction = READ_BYTE()) {
