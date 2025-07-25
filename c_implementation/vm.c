@@ -36,10 +36,12 @@ static void runtimeError(const char* format, ...) {
 void initVM() {
 	resetStack();
 	vm.objects = NULL;
+	initTable(&vm.globals);
 	initTable(&vm.strings);
 } 
 
 void freeVM() {
+	freeTable(&vm.globals);
 	freeTable(&vm.strings);
 	freeObjects();
 } 
@@ -108,6 +110,8 @@ static InterpretResult run() {
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 #define READ_LONG_CONSTANT() (vm.chunk->constants.values[ 0x00FFFFFF & \
 		((READ_BYTE() << 16) | (READ_BYTE() << 8) | (READ_BYTE()))])
+#define READ_STRING() AS_STRING(READ_CONSTANT())
+#define READ_LONG_STRING() AS_STRING(READ_LONG_CONSTANT())
 // need the `do`...`while` to force adding a semicolon at the end
 // this is...quite the macro. notice the wrapper to use is passed as a macro param
 #define BINARY_OP(valueType, op) \
@@ -123,7 +127,7 @@ static InterpretResult run() {
 
 	for(;;) {
 #ifdef DEBUG_TRACE_EXECUTION
-		printf("        ");
+		printf("         ");
 		for(Value* slot = vm.stack; slot < vm.stackTop; slot++) {
 			printf("[ ");
 			printValue(*slot);
@@ -150,8 +154,7 @@ static InterpretResult run() {
 		    }
 			case OP_CONSTANT_LONG: {
 				Value constant = READ_LONG_CONSTANT();
-				printValue(constant);
-				printf("\n");
+				push(constant);
 				break;
 			} 
 			case OP_NIL: push(NIL_VAL); break;
@@ -191,10 +194,72 @@ static InterpretResult run() {
 			case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
 			case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
 			case OP_DIVIDE: BINARY_OP(NUMBER_VAL, /); break;
-			case OP_RETURN: {
-				// for now, just print the last thing on the stack
+			// has already executed code for expression and leaves it on the stack
+			// note: no pushing!
+			case OP_PRINT: {
 				printValue(pop());
 				printf("\n");
+				break;
+			} 
+			case OP_POP: pop(); break;
+			case OP_DEFINE_GLOBAL: {
+				ObjString* name = READ_STRING();
+				tableSet(&vm.globals, name, peek(0));
+				pop();
+				break;
+			} 
+			case OP_DEFINE_GLOBAL_LONG: {
+				ObjString* name = READ_LONG_STRING();
+				tableSet(&vm.globals, name, peek(0));
+				pop();
+				break;
+			} 
+			case OP_GET_GLOBAL: {
+				ObjString* name = READ_STRING();
+				Value value;
+				if(!tableGet(&vm.globals, name, &value)) {
+					runtimeError("Undefined variable '%s'.", name->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				} 
+				push(value);
+				break;
+			} 
+			case OP_GET_GLOBAL_LONG: {
+				ObjString* name = READ_LONG_STRING();
+				Value value;
+				if(!tableGet(&vm.globals, name, &value)) {
+					runtimeError("Undefined variable '%s'.", name->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				} 
+				push(value);
+				break;
+			} 
+			case OP_SET_GLOBAL: {
+				ObjString* name = READ_STRING();
+				// tableSet returns `true` if it is NEW thing being added
+				// i.e. runtime error if variable hasn't been declared
+				if(tableSet(&vm.globals, name, peek(0))) {
+					// need to delete the zombie
+					tableDelete(&vm.globals, name);
+					runtimeError("Undefined variable '%s' being assigned.", name->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				} 
+				break;
+			} 
+			case OP_SET_GLOBAL_LONG: {
+				ObjString* name = READ_LONG_STRING();
+				// tableSet returns `true` if it is NEW thing being added
+				// i.e. runtime error if variable hasn't been declared
+				if(tableSet(&vm.globals, name, peek(0))) {
+					// need to delete the zombie
+					tableDelete(&vm.globals, name);
+					runtimeError("Undefined variable '%s' being assigned.", name->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				} 
+				break;
+			} 
+			case OP_RETURN: {
+				// now, exit interpreter
 				return INTERPRET_OK;
 			} 
 		} 
@@ -202,6 +267,8 @@ static InterpretResult run() {
 #undef READ_BYTE
 #undef READ_CONSTANT
 #undef READ_LONG_CONSTANT
+#undef READ_STRING
+#undef READ_LONG_STRING
 #undef BINARY_OP
 } 
 

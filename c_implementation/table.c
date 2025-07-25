@@ -89,7 +89,7 @@ bool tableSet(Table* table, ObjString* key, Value value) {
 	return isNewKey;
 } 
 
-bool TableGet(Table* table, ObjString* key, Value* value) {
+bool tableGet(Table* table, ObjString* key, Value* value) {
 	if(table->count == 0) return false; // this is an optimization
 	Entry* entry = findEntry(table->entries, table->capacity, key);
 	if(entry == NULL) return false; 
@@ -99,7 +99,7 @@ bool TableGet(Table* table, ObjString* key, Value* value) {
 	return true;
 } 
 
-bool TableDelete(Table* table, ObjString* key) {
+bool tableDelete(Table* table, ObjString* key) {
 	if(table->count == 0) return false;
 
 	// get entry

@@ -114,3 +114,17 @@
     - wait...I might be wrong...because the table is of ObjStrings, not of regular ones...
 
 ## Exercises
+
+1. In clox, only need string keys, so the table built is hardcoded for that key type.
+If we were to expose the hash table to Lox users as a first-class collection,
+support different kinds of keys would be nice.
+Add support for keys of the other primitive types.
+Later, clox will support user-defined classes.
+If we want to support keys that are *instances of those classes*, what complexity does that add?
+    - well, to answer the last thing: hashing complexity (how to hash)
+    - but then also, problems arise with *mutability*
+    - the nice thing about these first couple is that they are not mutable
+2. Hash tables have a lot of knobs to tweak.
+    - look at a few hash table implementations to see why they did things this way.
+3. Benchmarking is really really hard. Write some benchmark programs.
+

@@ -58,19 +58,25 @@ void writeChunk(Chunk* chunk, uint8_t byte, int line) {
 	chunk->lines[chunk->lcount - 1] = chunk->count - 1; // set offset herey
 } 
 
+// this writes the actual index onto the chunk array
+// this is used several times in the compiler.c file
+void writeLongConstant(Chunk* chunk, int constant, int line) {
+	writeChunk(chunk, (uint8_t) constant >> 16, line);
+	writeChunk(chunk, (uint8_t) (constant >> 8) & 0xFF, line);
+	writeChunk(chunk, (uint8_t) constant & 0xFF, line);
+} 
+
+// this takes care of writing a constant of any size
 void writeConstant(Chunk* chunk, Value value, int line) {
 	int constant = addConstant(chunk, value);
-	if(chunk->constants.count < 256) {
+	if(chunk->constants.count <= UINT8_MAX) {
 		writeChunk(chunk, OP_CONSTANT, line);
 		writeChunk(chunk, constant, line);
 		return;
 	} 
 	// will store in big-endian fashion
 	writeChunk(chunk, OP_CONSTANT_LONG, line);
-	writeChunk(chunk, (uint8_t) constant >> 16, line);
-	writeChunk(chunk, (uint8_t) (constant >> 8) & 0xFF, line);
-	writeChunk(chunk, (uint8_t) constant & 0xFF, line);
-
+	writeLongConstant(chunk, constant, line);
 } 
 
 int getLine(Chunk* chunk, int index) {

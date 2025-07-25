@@ -210,3 +210,4 @@ Anything italicized has been implemented
 - `forall` loops
 - the `aftereach` I had implemented for jlox
 - anonymous functions `fun () {...}`
+- fix the `makeConstant` return value

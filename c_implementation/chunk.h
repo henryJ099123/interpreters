@@ -20,6 +20,14 @@ typedef enum {
 	OP_DIVIDE,
 	OP_NOT,
 	OP_NEGATE,
+	OP_PRINT,
+	OP_POP,
+	OP_DEFINE_GLOBAL,
+	OP_DEFINE_GLOBAL_LONG,
+	OP_GET_GLOBAL,
+	OP_GET_GLOBAL_LONG,
+	OP_SET_GLOBAL,
+	OP_SET_GLOBAL_LONG,
 	OP_RETURN,
 } OpCode;
 
@@ -39,6 +47,7 @@ void freeChunk(Chunk* chunk);
 void writeChunk(Chunk* chunk, uint8_t byte, int line);
 int addConstant(Chunk* chunk, Value value);
 void writeConstant(Chunk* chunk, Value value, int line);
+void writeLongConstant(Chunk* chunk, int constant, int line);
 int getLine(Chunk* chunk, int index);
 
 #endif
