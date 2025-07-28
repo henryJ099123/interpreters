@@ -2,6 +2,8 @@
 
 #include "debug.h"
 #include "value.h"
+#include "vm.h"
+#include "table.h"
 
 void disassembleChunk(Chunk* chunk, const char* name) {
 	printf("== %s ==\n", name); // a small header
@@ -25,6 +27,32 @@ static int constantLongInstruction(const char* name, Chunk* chunk, int offset) {
 	constant &= 0x00FFFFFF;
 	printf("%-16s %4d '", name, constant);
 	printValue(chunk->constants.values[constant]);
+	printf("'\n");
+	return offset + 4;
+} 
+
+static int variableInstruction(const char* name, Chunk* chunk, int offset) {
+	uint8_t index = chunk->code[offset + 1];
+	// Value val = vm.globalValues.values[index];
+	ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
+	printf("%-16s %4d '", name, index);
+	if(key == NULL) printf("NULL");
+	else printValue(OBJ_VAL(key));
+	printf("' '");
+	printValue(vm.globalValues.values[index]);
+	printf("'\n");
+	return offset + 2;
+} 
+
+static int variableLongInstruction(const char* name, Chunk* chunk, int offset) {
+	uint32_t index = (chunk->code[offset + 1] << 16) | (chunk->code[offset + 2] << 8) | (chunk->code[offset + 3]);
+	index &= 0x00FFFFFF;
+	ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
+	printf("%-16s %4d '", name, index);
+	if(key == NULL) printf("NULL");
+	else printValue(OBJ_VAL(key));
+	printf("' '");
+	printValue(vm.globalValues.values[index]);
 	printf("'\n");
 	return offset + 4;
 } 
@@ -81,17 +109,17 @@ int disassembleInstruction(Chunk* chunk, int offset) {
 		case OP_POP:
 			return simpleInstruction("OP_POP", offset);
 		case OP_DEFINE_GLOBAL:
-			return constantInstruction("OP_DEFINE_GLOBAL", chunk, offset);
+			return variableInstruction("OP_DEFINE_GLOBAL", chunk, offset);
 		case OP_DEFINE_GLOBAL_LONG:
-			return constantLongInstruction("OP_DEFINE_GLOBAL_LONG", chunk, offset);
+			return variableLongInstruction("OP_DEFINE_GLOBAL_LONG", chunk, offset);
 		case OP_GET_GLOBAL:
-			return constantInstruction("OP_GET_GLOBAL", chunk, offset);
+			return variableInstruction("OP_GET_GLOBAL", chunk, offset);
 		case OP_GET_GLOBAL_LONG:
-			return constantInstruction("OP_GET_GLOBAL_LONG", chunk, offset);
+			return variableLongInstruction("OP_GET_GLOBAL_LONG", chunk, offset);
 		case OP_SET_GLOBAL:
-			return constantInstruction("OP_SET_GLOBAL", chunk, offset);
+			return variableInstruction("OP_SET_GLOBAL", chunk, offset);
 		case OP_SET_GLOBAL_LONG:
-			return constantInstruction("OP_SET_GLOBAL_LONG", chunk, offset);
+			return variableLongInstruction("OP_SET_GLOBAL_LONG", chunk, offset);
 		default:
 			printf("Unknown opcode %d\n", instruction);
 			return offset+1;

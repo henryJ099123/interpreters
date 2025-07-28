@@ -34,14 +34,17 @@ static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
 			// if we have passed a tombstone (i.e. it is *not* null)
 			// then we return that, for reuse e.g. for setting
 			// otherwise we return the entry
-			if(IS_NIL(entry->value)) // empty entry
+			if(IS_NIL(entry->value)) {// empty entry
 				return earliest_tombstone != NULL ? earliest_tombstone : entry;
+			}
 			// this is not a truly empty entry, i.e. a tombstone
 			// we set our earliest 
-			else
+			else {
 				if (earliest_tombstone == NULL) earliest_tombstone = entry;
-		} else if(entry->key == key)
+			}
+		} else if(entry->key == key) {
 			return entry;
+		}
 		index = (index + 1) % capacity;
 	} 
 	// no need to check if we *can't* find a bucket because this is impossible
@@ -92,7 +95,7 @@ bool tableSet(Table* table, ObjString* key, Value value) {
 bool tableGet(Table* table, ObjString* key, Value* value) {
 	if(table->count == 0) return false; // this is an optimization
 	Entry* entry = findEntry(table->entries, table->capacity, key);
-	if(entry == NULL) return false; 
+	if(entry->key == NULL) return false; 
 	
 	// value is just a return thing
 	*value = entry->value;
@@ -110,6 +113,15 @@ bool tableDelete(Table* table, ObjString* key) {
 	entry->key = NULL;
 	entry->value = BOOL_VAL(true);
 	return true;
+} 
+
+ObjString* tableFindKey(Table* table, Value value) {
+	for(int i = 0; i < table->capacity; i++) {
+		if(table->entries[i].key == NULL) continue;
+		if(valuesEqual(table->entries[i].value, value))
+			return table->entries[i].key;
+	} 
+	return NULL;
 } 
 
 // helper function to copy over one hash table to another

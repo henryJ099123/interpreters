@@ -36,12 +36,17 @@ static void runtimeError(const char* format, ...) {
 void initVM() {
 	resetStack();
 	vm.objects = NULL;
-	initTable(&vm.globals);
+//	initTable(&vm.globals);
+	initTable(&vm.globalNames);
+	initValueArray(&vm.globalValues);
+
 	initTable(&vm.strings);
 } 
 
 void freeVM() {
-	freeTable(&vm.globals);
+//	freeTable(&vm.globals);
+	freeTable(&vm.globalNames);
+	freeValueArray(&vm.globalValues);
 	freeTable(&vm.strings);
 	freeObjects();
 } 
@@ -107,9 +112,10 @@ static void concatenate() {
 // the heart and soul of the virtual machine
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++) // advance!
+#define READ_BYTE_LONG() (0x00FFFFFF & \
+		((READ_BYTE() << 16) | (READ_BYTE() << 8) | (READ_BYTE())))
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
-#define READ_LONG_CONSTANT() (vm.chunk->constants.values[ 0x00FFFFFF & \
-		((READ_BYTE() << 16) | (READ_BYTE() << 8) | (READ_BYTE()))])
+#define READ_LONG_CONSTANT() (vm.chunk->constants.values[ READ_BYTE_LONG() ] )
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define READ_LONG_STRING() AS_STRING(READ_LONG_CONSTANT())
 // need the `do`...`while` to force adding a semicolon at the end
@@ -203,18 +209,37 @@ static InterpretResult run() {
 			} 
 			case OP_POP: pop(); break;
 			case OP_DEFINE_GLOBAL: {
+				// take index off of chunk
+				// this represents some global variable
+				vm.globalValues.values[READ_BYTE()] = peek(0);
+				pop();
+				/*
 				ObjString* name = READ_STRING();
 				tableSet(&vm.globals, name, peek(0));
 				pop();
+				*/
 				break;
 			} 
 			case OP_DEFINE_GLOBAL_LONG: {
+				vm.globalValues.values[READ_BYTE_LONG()] = peek(0);
+				pop();
+			/*
 				ObjString* name = READ_LONG_STRING();
 				tableSet(&vm.globals, name, peek(0));
 				pop();
+			*/
 				break;
 			} 
 			case OP_GET_GLOBAL: {
+				uint8_t index = READ_BYTE();
+				if(IS_UNDEF(vm.globalValues.values[index])) {
+					ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
+					if(key == NULL)	runtimeError("Undefined variable.");
+					else runtimeError("Undefined variable '%s'.", key->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				} 
+				push(vm.globalValues.values[index]);
+			/*
 				ObjString* name = READ_STRING();
 				Value value;
 				if(!tableGet(&vm.globals, name, &value)) {
@@ -222,9 +247,19 @@ static InterpretResult run() {
 					return INTERPRET_RUNTIME_ERROR;
 				} 
 				push(value);
+			*/
 				break;
 			} 
 			case OP_GET_GLOBAL_LONG: {
+				uint32_t index = READ_BYTE_LONG();
+				if(IS_UNDEF(vm.globalValues.values[index])) {
+					ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
+					if(key == NULL)	runtimeError("Undefined variable.");
+					else runtimeError("Undefined variable '%s'.", key->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				} 
+				push(vm.globalValues.values[index]);
+			/*
 				ObjString* name = READ_LONG_STRING();
 				Value value;
 				if(!tableGet(&vm.globals, name, &value)) {
@@ -232,9 +267,19 @@ static InterpretResult run() {
 					return INTERPRET_RUNTIME_ERROR;
 				} 
 				push(value);
+			*/
 				break;
 			} 
 			case OP_SET_GLOBAL: {
+				uint8_t index = READ_BYTE();	
+				if(IS_UNDEF(vm.globalValues.values[index])) {
+					ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
+					if(key == NULL)	runtimeError("Trying to set undefined variable.");
+					else runtimeError("Trying to set undefined variable '%s'.", key->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				} 
+				vm.globalValues.values[index] = peek(0);
+			/*
 				ObjString* name = READ_STRING();
 				// tableSet returns `true` if it is NEW thing being added
 				// i.e. runtime error if variable hasn't been declared
@@ -244,9 +289,19 @@ static InterpretResult run() {
 					runtimeError("Undefined variable '%s' being assigned.", name->chars);
 					return INTERPRET_RUNTIME_ERROR;
 				} 
+			*/
 				break;
 			} 
 			case OP_SET_GLOBAL_LONG: {
+				uint8_t index = READ_BYTE_LONG();	
+				if(IS_UNDEF(vm.globalValues.values[index])) {
+					ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
+					if(key == NULL)	runtimeError("Trying to set undefined variable.");
+					else runtimeError("Trying to set undefined variable '%s'.", key->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				} 
+				vm.globalValues.values[index] = peek(0);
+				/*
 				ObjString* name = READ_LONG_STRING();
 				// tableSet returns `true` if it is NEW thing being added
 				// i.e. runtime error if variable hasn't been declared
@@ -256,6 +311,7 @@ static InterpretResult run() {
 					runtimeError("Undefined variable '%s' being assigned.", name->chars);
 					return INTERPRET_RUNTIME_ERROR;
 				} 
+				*/
 				break;
 			} 
 			case OP_RETURN: {

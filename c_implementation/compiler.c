@@ -44,7 +44,6 @@ typedef struct {
 // another global variable
 Parser parser;
 Chunk* compilingChunk;
-Table globalVariables;
 
 // this will change, likely
 static Chunk* currentChunk() {
@@ -225,12 +224,28 @@ static int identifierConstant(Token* name) {
 	// the string is just thrown away (variable_name)
 	ObjString* variable_name = copyString(name->start, name->length);
 	Value index;
-	if(!tableGet(&globalVariables, variable_name, &index)) {
-		index = NUMBER_VAL((double) makeConstant(OBJ_VAL(variable_name)));
-		tableSet(&globalVariables, variable_name, index);
+	/*
+	for(int i = 0; i < vm.globalNames.capacity; i++) {
+		if(vm.globalNames.entries[i].key != NULL)
+			printf("{ %s, %g }\n", vm.globalNames.entries[i].key->chars, vm.globalNames.entries[i].value.as.number);
+		else {
+			printf("{ NULL, ");
+			printValue(vm.globalNames.entries[i].value);
+			printf(" }\n");
+		}	
+	} 
+	for(int i = 0; i < vm.globalValues.count; i++) {
+		printf("| "); printValue(vm.globalValues.values[i]); printf(" |\n");
+		}
+	*/
+	if(tableGet(&vm.globalNames, variable_name, &index)) {
+		return (int) AS_NUMBER(index);
 	}
-	return (int) AS_NUMBER(index);
-
+	int newIndex = vm.globalValues.count;
+	writeValueArray(&vm.globalValues, UNDEF_VAL);
+	// index = NUMBER_VAL((double) makeConstant(OBJ_VAL(variable_name)));
+	tableSet(&vm.globalNames, variable_name, NUMBER_VAL((double) newIndex));
+	return newIndex;
 	// return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
 } 
 
@@ -436,7 +451,6 @@ static void statement() {
 bool compile(const char* source, Chunk* chunk) {
 	initScanner(source);
 	compilingChunk = chunk;
-	initTable(&globalVariables);
 
 	// init the parser
 	parser.hadError = false;
@@ -449,6 +463,5 @@ bool compile(const char* source, Chunk* chunk) {
 		declaration();
 
 	endCompiler();
-	freeTable(&globalVariables);
 	return !parser.hadError;
 } 

@@ -105,3 +105,16 @@ Is this a good trade-off?
     - Another way of optimization is to simple search the Values array
         - not that slow, as each string can be compared via a direct pointer equality
     - So I was right about both of these. Nystrom implements the first...so I'll give it a shot
+    - compiling an identifier is still constant time but the constant factors is a bit faster
+    - results in fewer table slots, i.e. a smaller table
+    - no memory from redundant strings because clox interns all strings
+2. Looking up a global variable by name via a hash table is pretty slow.
+Can you think of a more efficient way to store and access global variables without changing the semantics?
+    - the only way I can think of it is to index each of the variables, which *still* requires a hash table
+    - okay...so I was right again. But *now*, the virtual machine *instead* has a table of indices *and* a values array
+    - this is faster because instead of global variables being handled at runtime,
+    we kind of *statically allocate* everything *at compile time*
+    - this results in info sharing between the VM and the compiler
+    - I do this on my own now knowing the approach:
+    - The funny thing is...this directly contradicts the approach for number 1. Time to delete!
+    - omg. this was so hard. so many bugs.

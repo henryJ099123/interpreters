@@ -13,7 +13,9 @@ typedef struct {
 	uint8_t* ip; // faster to deref a ptr
 	Value stack[STACK_MAX];
 	Value* stackTop; // ptr to top of stack
-	Table globals;
+//	Table globals;
+	Table globalNames;
+	ValueArray globalValues;
 	Table strings;
 	Obj* objects;
 } VM;
