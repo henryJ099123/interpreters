@@ -211,3 +211,5 @@ Anything italicized has been implemented
 - the `aftereach` I had implemented for jlox
 - anonymous functions `fun () {...}`
 - fix the `makeConstant` return value
+- fix the memory leak in `identifierConstant`
+- optimize that I do a reverse search on the variables for the debugging. I could just do another list

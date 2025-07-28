@@ -118,3 +118,19 @@ Can you think of a more efficient way to store and access global variables witho
     - I do this on my own now knowing the approach:
     - The funny thing is...this directly contradicts the approach for number 1. Time to delete!
     - omg. this was so hard. so many bugs.
+3. When in the REPL, a user may write a function that references an unknown, future variable.
+Lox should handle this gracefully by not reporting an "unknown variable" compile error at first definition.
+For a Lox *script*, the compiler can see the whole text.
+Statically, we know if one of these pre-referenced global variables will ever be defined.
+But if this function is never called, we'll never know, as a runtime error will ever happen either.
+Should these mistakes be reported?
+    - Python doesn't even really allow global definitions like this (easily), but it throws an error
+    - I think this should be reported as it can't be intended. *However*,
+    - if you're in the middle of something...it might be nice for it to be supressed
+    - Nystrom:
+        - seemingly safe answer: error, as using a variable never defined is wrong
+        - but in the middle of refactoring something, you want it to be ok to have code in a broken state,
+        as long as it isn't *called*
+        - this could be a *warning* instead of an entire error, but in-between error-handling is never clear
+    - I agree. error! go fix your code first
+
