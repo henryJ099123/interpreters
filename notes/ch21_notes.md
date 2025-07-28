@@ -90,3 +90,18 @@ This should be a syntax error, as `=` has lowest precedence
 - we need to pass this as a flag...but as `variable` is in a table of functoin pointers,
 all of the parse functions need to have the same declaration
     - even if they don't need it at all...only setters (and when I add subscripts, `[index]`) do
+
+## Exercises
+
+1. The compiler adds a global variable's name to the constant table
+as a string each time it encounters an identifier.
+This constant is made *each time*, even if the variable name is already
+in the constant table. This wastes memory.
+Optimize this. How does your optimization affect the performance of the compiler, compared to runtime?
+Is this a good trade-off?
+    - One way of optimizing I can see here is to use a hash table as a set for vars
+        - Results in constant-time addition of each global variable
+        - Is the overhead of a *separate* hash table just for the global really a good idea?
+    - Another way of optimization is to simple search the Values array
+        - not that slow, as each string can be compared via a direct pointer equality
+    - So I was right about both of these. Nystrom implements the first...so I'll give it a shot

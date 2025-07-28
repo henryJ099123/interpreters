@@ -44,6 +44,7 @@ typedef struct {
 // another global variable
 Parser parser;
 Chunk* compilingChunk;
+Table globalVariables;
 
 // this will change, likely
 static Chunk* currentChunk() {
@@ -218,7 +219,19 @@ static void string(bool canAssign) {
 
 // will put the token's name on the Value array and puts its index on the code chunk 
 static int identifierConstant(Token* name) {
-	return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
+	
+	// TODO: These changes result in memory problems with the garbage collector
+	// currently there is *memory leakage* if the string *is* found already because 
+	// the string is just thrown away (variable_name)
+	ObjString* variable_name = copyString(name->start, name->length);
+	Value index;
+	if(!tableGet(&globalVariables, variable_name, &index)) {
+		index = NUMBER_VAL((double) makeConstant(OBJ_VAL(variable_name)));
+		tableSet(&globalVariables, variable_name, index);
+	}
+	return (int) AS_NUMBER(index);
+
+	// return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
 } 
 
 static void namedVariable(Token name, bool canAssign) {
@@ -423,6 +436,7 @@ static void statement() {
 bool compile(const char* source, Chunk* chunk) {
 	initScanner(source);
 	compilingChunk = chunk;
+	initTable(&globalVariables);
 
 	// init the parser
 	parser.hadError = false;
@@ -435,5 +449,6 @@ bool compile(const char* source, Chunk* chunk) {
 		declaration();
 
 	endCompiler();
+	freeTable(&globalVariables);
 	return !parser.hadError;
 } 
