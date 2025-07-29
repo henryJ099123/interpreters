@@ -652,6 +652,62 @@ static void expressionStatement() {
     emitByte(OP_POP);
 } 
 
+static void forStatement() {
+    beginScope(); // for the variable declaration
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+    
+    // initializer.
+    if(match(TOKEN_SEMICOLON)) {
+        // no initializer
+    } else if(match(TOKEN_VAR)) varDeclaration();
+    else expressionStatement(); // doesn't *need* to be a variable declaration
+    // consume(TOKEN_SEMICOLON, "Expect ';' after 'for' initializer.");
+
+    int loopStart = currentChunk()->count;
+    int exitJump = -1; // dummy value
+    if(!match(TOKEN_SEMICOLON)) {
+        expression();
+        consume(TOKEN_SEMICOLON, "Expect ';' after loop condition.");
+
+        // jump out of loop
+        exitJump = emitJump(OP_JUMP_IF_FALSE);
+        emitByte(OP_POP); // remove condition
+    } 
+
+    if(!match(TOKEN_RIGHT_PAREN)) {
+        // we first jump over the increment clause's code to the loop body
+        int bodyJump = emitJump(OP_JUMP); 
+
+        // record location of the start of the increment
+        int incrementStart = currentChunk()->count; 
+        expression(); 
+        emitByte(OP_POP); 
+        consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'for' clauses.");
+
+        // then we put a jump back to before the condition
+        emitLoop(loopStart); 
+        loopStart = incrementStart; 
+        patchJump(bodyJump); 
+
+        // flow looks like this:
+        // condition => jump over increment => loop body => jump to increment => jump to condition
+    } 
+
+    statement();
+
+    // if there's an increment, this will jump back there
+    emitLoop(loopStart);
+
+    // only patch the jump if there's a condition clause
+    // no condition ==> no jump to patch ==> no condition value on top of the stack
+    // i.e. no getting out of the loop
+    if(exitJump != -1) {
+        patchJump(exitJump);
+        emitByte(OP_POP); // remove condition
+    } 
+    endScope();
+} 
+
 static void ifStatement() {
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
     expression();
@@ -684,6 +740,7 @@ static void statement() {
     if(match(TOKEN_PRINT)) printStatement();
     else if(match(TOKEN_IF)) ifStatement();
     else if(match(TOKEN_WHILE)) whileStatement();
+    else if(match(TOKEN_FOR)) forStatement();
     else if(match(TOKEN_LEFT_BRACE)) {
         beginScope();
         block();

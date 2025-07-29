@@ -42,3 +42,18 @@
 - `while` is way easier than `for` so we focus there
 - for jumping forward, we emit the instruction in two stages
     - no problem for loops because we jump backwards, not forwards
+
+## For statements
+
+- the `for` loop has three bits, all of which are optional:
+    - initializer, run once at the beginning
+    - the condition, an expression which makes the loop stop running
+    - the increment, which runs at the end of each loop iteration
+- in jlox we desugared the for loop into a while loop
+- clox will be similar-ish
+- the increment is the hardest and strangest part
+    - it's a tad convoluted: it appears *before* the body but executes *after*
+    - so, we jump over the increment, run the body, and then jump *back* to the increment to run it
+- it's convoluted but no need to touch the runtime
+    - all gets compiled down to primitive control flow operations the VM supports
+- clox is now Turing complete!
