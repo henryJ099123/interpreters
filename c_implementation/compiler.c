@@ -133,6 +133,24 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
     emitByte(byte2);
 } 
 
+// emits a new loop instruction that unconditionally jumps backwards
+static void emitLoop(int loopStart) {
+    // OP_LOOP goes backwards
+    emitByte(OP_LOOP);
+    int offset = currentChunk()->count - loopStart + 2;
+    if(offset > UINT16_MAX) error("Loop body is too large.");
+    emitByte((offset >> 8) & 0xff);
+    emitByte(offset & 0xff);
+} 
+
+static int emitJump(uint8_t instruction) {
+    emitByte(instruction);
+    emitByte(0xff); // this one's location returned
+    emitByte(0xff);
+    // emits an int of the location of the second emitByte here
+    return currentChunk()->count - 2;
+} 
+
 static void emitLongIndex(int constant) {
     writeLongConstant(currentChunk(), constant, parser.previous.line);
 } 
@@ -141,14 +159,26 @@ static void emitReturn() {
     emitByte(OP_RETURN);
 } 
 
+/*
 // find some way to optimize this for 1 byte or 3 bytes instead of always 4
 static int makeConstant(Value value) {
     int constant = addConstant(currentChunk(), value);
     return constant;
 }
+*/
 
 static void emitConstant(Value value) {
     writeConstant(currentChunk(), value, parser.previous.line);
+} 
+
+static void patchJump(int offset) {
+    // ...why do the subtract 2's at all?
+    int jump = currentChunk()->count - offset - 2;
+    if(jump > UINT16_MAX)
+        error("Jump distance is too far.");
+
+    currentChunk()->code[offset] = (jump >> 8) & 0xff;
+    currentChunk()->code[offset + 1] = jump & 0xff;
 } 
 
 static void initCompiler(Compiler* compiler) {
@@ -227,11 +257,22 @@ static void binary(bool canAssign) {
 static void ternary(bool canAssign) {
     // right now, this must be the '?'
     // TokenType operatorType = parser.previous.type;
+
+    // include a jump to the false bit if this is false
+    int skipTrue = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP); // pop for the true one
+
     parsePrecedence(PREC_ASSIGNMENT_TERNARY);
-    // perhaps some byte emission?
+
+    // skip the false bit always
+    int skipFalse = emitJump(OP_JUMP);
+    patchJump(skipTrue);
+    emitByte(OP_POP); // pop for the false one
+
     consume(TOKEN_COLON, "Expect ':' after '?' in ternary expression.");
     parsePrecedence(PREC_ASSIGNMENT_TERNARY);
-    // this is where some byte emission would occur
+
+    patchJump(skipFalse);
 
 } 
 
@@ -388,6 +429,40 @@ static void unary(bool canAssign) {
     } 
 } 
 
+// this is an infix operator function
+static void and_(bool canAssign) {
+    // left hand side already on top
+    // checks what's on top. if it's false we skip
+    int endJump = emitJump(OP_JUMP_IF_FALSE);
+
+    // if it's true we discard the left-hand side value
+    emitByte(OP_POP);
+
+    // this becomes the value of the whole `and` expression
+    parsePrecedence(PREC_AND);
+
+    patchJump(endJump);
+} 
+
+// bad way to do this. just add a JUMP_IF_TRUE thing
+static void or_(bool canAssign) {
+    // if this one is false, we skip to the next side
+    int elseJump = emitJump(OP_JUMP_IF_FALSE);
+    // i.e. if it was true, then we have a jump to skip the right-hand operand
+    int endJump = emitJump(OP_JUMP);
+
+    // jump here (past the previous jump)
+    patchJump(elseJump);
+    // pop the lefthand side as it isn't important
+    emitByte(OP_POP);
+
+    // continue the expression
+    parsePrecedence(PREC_OR);
+
+    // jump here if it was true
+    patchJump(endJump);
+} 
+
 // table of rules
 // the [TOKEN_DOT] syntax helps initialize the exact indices of an array, I think
 // very easy to see which tokens have expressions associated with them!
@@ -415,7 +490,7 @@ ParseRule rules[] = {
     [TOKEN_IDENTIFIER]    = {variable, NULL,   PREC_NONE},
     [TOKEN_STRING]        = {string,   NULL,   PREC_NONE},
     [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
-    [TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_AND]           = {NULL,     and_,   PREC_NONE},
     [TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_ELSE]          = {NULL,     NULL,   PREC_NONE},
     [TOKEN_FALSE]         = {literal,  NULL,   PREC_NONE},
@@ -423,7 +498,7 @@ ParseRule rules[] = {
     [TOKEN_FUN]           = {NULL,     NULL,   PREC_NONE},
     [TOKEN_IF]            = {NULL,     NULL,   PREC_NONE},
     [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
-    [TOKEN_OR]            = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_OR]            = {NULL,     or_,    PREC_NONE},
     [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
     [TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
@@ -497,6 +572,7 @@ static void defineVariable(int global) {
     emitLongIndex(global);
 } 
 
+
 // returns a pointer to the ParseRule at given TokenType
 static ParseRule* getRule(TokenType type) {
     return &rules[type];
@@ -553,10 +629,48 @@ static void printStatement() {
     emitByte(OP_PRINT);
 } 
 
+static void whileStatement() {
+    int loopStart = currentChunk()->count;
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition of 'while'.");
+
+    // jump out of while loop
+    int exitJump = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP); // remove condition from the stack
+    // body
+    statement();
+    emitLoop(loopStart);
+
+    patchJump(exitJump);
+    emitByte(OP_POP); // remove condition
+} 
+
 static void expressionStatement() {
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after expression statement.");
     emitByte(OP_POP);
+} 
+
+static void ifStatement() {
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition of 'if' statement.");
+    
+    int thenJump = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP); // remove condition. Won't be taken if the jump is false
+    statement();
+
+    int elseJump = emitJump(OP_JUMP);
+    
+    // always do the then jump even if it isn't needed?
+    patchJump(thenJump);
+    emitByte(OP_POP); // remove condition. Won't be taken if the jump is true
+
+    if(match(TOKEN_ELSE)) statement();
+
+    // fixes the jump instruction for *right here*
+    patchJump(elseJump);
 } 
 
 static void declaration() {
@@ -568,6 +682,8 @@ static void declaration() {
 
 static void statement() {
     if(match(TOKEN_PRINT)) printStatement();
+    else if(match(TOKEN_IF)) ifStatement();
+    else if(match(TOKEN_WHILE)) whileStatement();
     else if(match(TOKEN_LEFT_BRACE)) {
         beginScope();
         block();
