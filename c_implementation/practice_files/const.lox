@@ -1,0 +1,17 @@
+const x = true;
+var z = 25;
+
+print x;
+print z;
+
+{
+    const x;
+    var y = 10;
+    y = "ing";
+    print x;
+    print y;
+} 
+
+z = "str";
+print x;
+print z;

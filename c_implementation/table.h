@@ -20,6 +20,7 @@ void initTable(Table* table);
 void freeTable(Table* table);
 bool tableSet(Table* table, ObjString* key, Value value);
 bool tableGet(Table* table, ObjString* key, Value* value);
+bool tableKeyExists(Table* table, ObjString* key);
 bool tableDelete(Table* table, ObjString* key);
 ObjString* tableFindKey(Table* table, Value value);
 void tableAddAll(Table* from, Table* to);

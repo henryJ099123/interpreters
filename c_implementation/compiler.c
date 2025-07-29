@@ -45,6 +45,7 @@ typedef struct {
 typedef struct {
     Token name; // name of variable
     int depth; // scope depth of block where local is declared
+    bool modifiable; // for mutable vs. immutable variables
 } Local;
 
 // a flat array of all locals in scope at each point in compilation
@@ -59,6 +60,7 @@ typedef struct {
 Parser parser;
 Compiler* current = NULL;
 Chunk* compilingChunk;
+Table constantGlobals;
 
 // this will change, likely
 static Chunk* currentChunk() {
@@ -252,14 +254,22 @@ static void string(bool canAssign) {
     emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
 } 
 
+// TODO memory leak here as well
+static bool isGlobalConstant(Token* name) {
+    ObjString* variable_name = copyString(name->start, name->length);
+    return tableKeyExists(&constantGlobals, variable_name);
+} 
+
 // will put the token's name on the Value array and puts its index on the code chunk 
-static int identifierConstant(Token* name) {
+static int identifierConstant(Token* name, bool modifiable) {
     
     // TODO: These changes result in memory problems with the garbage collector
     // currently there is *memory leakage* if the string *is* found already because 
     // the string is just thrown away (variable_name)
     ObjString* variable_name = copyString(name->start, name->length);
     Value index;
+    if(!modifiable)
+        tableSet(&constantGlobals, variable_name, NIL_VAL);
     if(tableGet(&vm.globalNames, variable_name, &index)) {
         return (int) AS_NUMBER(index);
     }
@@ -279,12 +289,13 @@ static bool identifiersEqual(Token* a, Token* b) {
 
 // for each spot on the locals array, we look for the variable
 // and walk it backwards for shadowing of variables
-static int resolveLocal(Compiler* compiler, Token* name) {
+static int resolveLocal(Compiler* compiler, Token* name, bool* modifiable) {
     for(int i = compiler->localCount - 1; i >= 0; i--) {
         Local* local = &compiler->locals[i];
         if(identifiersEqual(name, &local->name)) {
             if(local->depth == -1)
                 error("Can't read local variable in its own initializer.");
+            *modifiable = local->modifiable;
             return i;
         } 
     } 
@@ -292,7 +303,7 @@ static int resolveLocal(Compiler* compiler, Token* name) {
 } 
 
 // initializes the next available local in the compiler's array of variables
-static void addLocal(Token name) {
+static void addLocal(Token name, bool modifiable) {
     if(current->localCount == UINT8_COUNT) {
         error("Too many local variables in this scope.");
         return;
@@ -300,11 +311,12 @@ static void addLocal(Token name) {
     Local* local = &current->locals[current->localCount++];
     local->name = name;
     local->depth = -1;
+    local->modifiable = modifiable;
 } 
 
 // global variables are late bound and thus ignored here
 // local variables are remembered
-static void declareVariable() {
+static void declareVariable(bool modifiable) {
     if(current->scopeDepth == 0) return;
     Token* name = &parser.previous;
 
@@ -316,26 +328,34 @@ static void declareVariable() {
             break;
         // if there's one *in the same scope* we throw error
         if(identifiersEqual(name, &local->name))
-            error("Already a variable  with this name in this scope.");
+            error("Already a variable or constant with this name in this scope.");
     } 
-    addLocal(*name);
+    addLocal(*name, modifiable);
 } 
 
 static void namedVariable(Token name, bool canAssign) {
     uint8_t getOp, setOp;
-    int arg = resolveLocal(current, &name);
+    bool modifiable = true;
+    int arg = resolveLocal(current, &name, &modifiable);
 
     if(arg != -1) {
         getOp = OP_GET_LOCAL;
         setOp = OP_SET_LOCAL;
     } else {
         // reassigns *arg* to point to the table from before
-        int arg = identifierConstant(&name);
+        // as this is not defining anything, we don't want to mess with the global const table
+        arg = identifierConstant(&name, true);
+        modifiable = !isGlobalConstant(&name);
         getOp = arg <= UINT8_MAX ? OP_GET_GLOBAL : OP_GET_GLOBAL_LONG;
         setOp = arg <= UINT8_MAX ? OP_SET_GLOBAL : OP_SET_GLOBAL_LONG;
     } 
 
     if(canAssign && match(TOKEN_EQUAL)) {
+        if(!modifiable) {
+            // keep in mind: this *won't* evaluate the rest of the expression
+            error("Cannot assign to a constant.");
+            return;
+        } 
         expression();
         // set expression.
         emitByte(setOp);
@@ -410,6 +430,7 @@ ParseRule rules[] = {
     [TOKEN_THIS]          = {NULL,     NULL,   PREC_NONE},
     [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
     [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_CONST]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
@@ -447,13 +468,13 @@ static void parsePrecedence(Precedence precedence) {
 } 
 
 // requires next token to be an identifier
-static int parseVariable(const char* errorMessage) {
+static int parseVariable(const char* errorMessage, bool modifiable) {
     consume(TOKEN_IDENTIFIER, errorMessage);
-    declareVariable();
+    declareVariable(modifiable);
     
     // exit function if in local scope, so dummy table index returned
     if(current->scopeDepth > 0) return 0;
-    return identifierConstant(&parser.previous);
+    return identifierConstant(&parser.previous, modifiable);
 } 
 
 static void markInitialized() {
@@ -513,11 +534,14 @@ static void block() {
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
 } 
 
-static void varDeclaration() {
-    int global = parseVariable("Expect variable name.");
+static void varDeclaration(bool modifiable) {
+    int global = parseVariable("Expect variable name.", modifiable);
     // if there's an equal sign, we have to assign the thing
     if(match(TOKEN_EQUAL)) expression();
     // otherwise, we return nil for it to attach
+    else if(!modifiable) {
+        error("Must initialize a constant with a value at declaration.");
+    } 
     else emitByte(OP_NIL);
     consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
     defineVariable(global);
@@ -536,7 +560,8 @@ static void expressionStatement() {
 } 
 
 static void declaration() {
-    if(match(TOKEN_VAR)) varDeclaration();
+    if(match(TOKEN_VAR)) varDeclaration(true);
+    else if(match(TOKEN_CONST)) varDeclaration(false);
     else statement();
     if(parser.panicMode) synchronize();
 } 
@@ -555,6 +580,7 @@ bool compile(const char* source, Chunk* chunk) {
     initScanner(source);
     Compiler compiler; // same as the "current" field
     initCompiler(&compiler);
+    initTable(&constantGlobals);
     compilingChunk = chunk;
 
     // init the parser

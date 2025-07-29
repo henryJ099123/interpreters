@@ -99,4 +99,40 @@ We fixed this by splitting variable declaration into two phases.
 
 ## Exercises
 
-1. 
+1. The local array makes it easy to calculate the stack slot of each variable.
+However, the compiler must do a linear scan through the array for resolving a reference.
+What's something more efficient? Is the added complexity worth the cost?
+    - I'm not actually going to implement this. However,
+    you could just use another hash map!
+    - However, then you seriously slow down trying to find the thing on the stack.
+    - So I'd make a separate data structure to hold the names of the local variables.
+    - Causes a problem for local shadowing though...
+    - Nystrom's answer:
+        - there is none!
+
+2. How do other languages handle code like this:
+```
+var a = a;
+```
+What would you do?
+    - Python doesn't allow it
+    - in C it is a warning but NOT an error
+        - however it is undefined behavior
+    - I would just make this an error. What on earth could it mean?
+        - the only logical solution if you *were* to assign it is with a null value
+
+3. Many languages distinguish between variables that *can* be reassigned and those that can't.
+In Java, you use `final`, and in js, you use `const`.
+Pick a keyword for single-assignment variable form to add to Lox and justify your choice.
+Then, implement it.
+An attempt to assign to a variable declared with this keyword *should* cause a compilation error.
+    - alright well off I go!
+    - As we use `var` to declare variables it really only makese sense to use `const` to declare it
+    - did it!
+4. Extend clox to allow more than 256 local variables in scope at a time.
+    - I *should* implement this for consistency, and it wouldn't be that hard.
+    - I just don't wanna yet. maybe later!
+
+
+
+4. Extend clox to allow more than 256 local variables in scope at a time.
