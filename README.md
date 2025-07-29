@@ -213,3 +213,5 @@ Anything italicized has been implemented
 - fix the `makeConstant` return value
 - fix the memory leak in `identifierConstant`
 - optimize that I do a reverse search on the variables for the debugging. I could just do another list
+- fix an error I think with the `_LONG` varieties and the now-used method for global variables
+    - need to do this for local variables too, as the locals depth is static
