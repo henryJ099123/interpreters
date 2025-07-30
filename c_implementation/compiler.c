@@ -519,8 +519,16 @@ static void parsePrecedence(Precedence precedence) {
     advance();
     // if no prefix parser, this token must be a syntax error,
     // i.e. it should not be placed here
-    // reading L to R< the first token is *always* a prefix expression
+    // reading L to R < the first token is *always* a prefix expression
     ParseFn prefixRule = getRule(parser.previous.type)->prefix;
+    if(parser.previous.type == TOKEN_CASE) {
+        error("Can't have 'case' after 'default' or outside of a 'switch'.");
+        return;
+    } 
+    if(parser.previous.type == TOKEN_DEFAULT) {
+        error("Can't have 'default' outside of a 'switch'.");
+        return;
+    } 
     if(prefixRule == NULL) {
         error("Expect expression.");
         return;
@@ -763,7 +771,7 @@ static void switchStatement() {
         
         // add statements
         while(!check(TOKEN_CASE) && !check(TOKEN_DEFAULT) &&
-              !check(TOKEN_RIGHT_BRACE)) statement();
+              !check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) statement();
         
         // for the jumpOut, I didn't want to allocate a list of integers,
         // so instead if the case is done, it'll keep jumping to the next case
@@ -786,7 +794,7 @@ static void switchStatement() {
         consume(TOKEN_COLON, "Expect ':' after 'default'.");
         // we patch the jump again to get here
         // add statements until the }, as there aren't other cases after the default
-        while(!check(TOKEN_RIGHT_BRACE)) statement();
+        while(!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) statement();
     } 
 
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after 'switch' body.");

@@ -42,3 +42,9 @@ switch(my_letter) {
 
 print "End of switch with only default.";
 
+switch(true) {
+case false:
+default:
+}
+
+case
