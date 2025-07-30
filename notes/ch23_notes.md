@@ -57,3 +57,19 @@
 - it's convoluted but no need to touch the runtime
     - all gets compiled down to primitive control flow operations the VM supports
 - clox is now Turing complete!
+
+## Exercises
+
+1. add `switch` statements to clox with the following grammar:
+```
+switchStmt -> "switch" "(" expression ")" "{" switchCase* defaultCase? "}" ;
+switchCase -> "case" expression ":" statement* ;
+defaultCase -> "default" ":" statement* ;
+```
+    - to execute a `switch`, evaluate the parenthesized switch expression
+    - then walk the cases: for each case, evaluate it; if equal, execute the statement under the case
+        - then, exit the `switch`
+    - otherwise, try the next case
+    - omit fallthrough and `break` statements; just jump to the end of the switch
+    - this is just a glorified `if...else if...else if`
+    - ok twas a bit harder than I expected but it's DONE!

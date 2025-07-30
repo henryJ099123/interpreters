@@ -476,6 +476,7 @@ ParseRule rules[] = {
     [TOKEN_MINUS]         = {unary,    binary, PREC_TERM},
     [TOKEN_PLUS]          = {NULL,     binary, PREC_TERM},
     [TOKEN_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_COLON]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_SLASH]         = {NULL,     binary, PREC_FACTOR},
     [TOKEN_STAR]          = {NULL,     binary, PREC_FACTOR},
     [TOKEN_QUESTION]      = {NULL,     ternary, PREC_ASSIGNMENT_TERNARY},
@@ -502,6 +503,9 @@ ParseRule rules[] = {
     [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
     [TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_SWITCH]        = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_CASE]          = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_DEFAULT]       = {NULL,     NULL,   PREC_NONE},
     [TOKEN_THIS]          = {NULL,     NULL,   PREC_NONE},
     [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
     [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
@@ -659,7 +663,7 @@ static void forStatement() {
     // initializer.
     if(match(TOKEN_SEMICOLON)) {
         // no initializer
-    } else if(match(TOKEN_VAR)) varDeclaration();
+    } else if(match(TOKEN_VAR)) varDeclaration(true);
     else expressionStatement(); // doesn't *need* to be a variable declaration
     // consume(TOKEN_SEMICOLON, "Expect ';' after 'for' initializer.");
 
@@ -729,6 +733,70 @@ static void ifStatement() {
     patchJump(elseJump);
 } 
 
+static void switchStatement() {
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'switch'.");
+    // this is the condition for the switch.
+    // we need this *a lot*, but we *cannot* jump back and forth
+    // without a TON of crazy jumps, because the jump dist changes each time.
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition of 'switch' statement.");
+    consume(TOKEN_LEFT_BRACE, "Expect '{' to start 'switch' body.");
+
+    // specific jumps.
+    int jumpToNextCase = 0;
+    int jumpOut = 0;
+    bool first_case = true;
+    // we're in a 'case' for the switch.
+    while(match(TOKEN_CASE)) {
+        // we first *duplicate* the expression's final value.
+        // this is how we keep the switch condition.
+        emitByte(OP_DUP);
+        // this will add the case's expression on the stack
+        expression();
+        consume(TOKEN_COLON, "Expect ':' after 'case'.");
+        // this will put whether the two things are equal on the stack
+        emitByte(OP_EQUAL);
+
+        // if they're unequal, we jump to the next case (see `if` above)
+        jumpToNextCase = emitJump(OP_JUMP_IF_FALSE);
+        emitByte(OP_POP); // pop the condition if it was true
+        
+        // add statements
+        while(!check(TOKEN_CASE) && !check(TOKEN_DEFAULT) &&
+              !check(TOKEN_RIGHT_BRACE)) statement();
+        
+        // for the jumpOut, I didn't want to allocate a list of integers,
+        // so instead if the case is done, it'll keep jumping to the next case
+        // to the end. It's a bit slower but smaller complexity.
+        if(!first_case)
+            patchJump(jumpOut);
+        jumpOut = emitJump(OP_JUMP);
+
+        // this preps the next case (or when there's no case, the exit)
+        
+        // we add a jump here for when the previous case fails
+        // we also remove the bool value sitting on the stack
+        patchJump(jumpToNextCase);
+        emitByte(OP_POP);
+        first_case = false;
+    } 
+
+    // if there's a default:
+    if(match(TOKEN_DEFAULT)) {
+        consume(TOKEN_COLON, "Expect ':' after 'default'.");
+        // we patch the jump again to get here
+        // add statements until the }, as there aren't other cases after the default
+        while(!check(TOKEN_RIGHT_BRACE)) statement();
+    } 
+
+    consume(TOKEN_RIGHT_BRACE, "Expect '}' after 'switch' body.");
+    // there's no jump to patch if there's no cases at all
+    if(!first_case) {
+        patchJump(jumpOut);
+        emitByte(OP_POP); // to remove the continually-duplicated condition
+    }
+} 
+
 static void declaration() {
     if(match(TOKEN_VAR)) varDeclaration(true);
     else if(match(TOKEN_CONST)) varDeclaration(false);
@@ -741,6 +809,7 @@ static void statement() {
     else if(match(TOKEN_IF)) ifStatement();
     else if(match(TOKEN_WHILE)) whileStatement();
     else if(match(TOKEN_FOR)) forStatement();
+    else if(match(TOKEN_SWITCH)) switchStatement();
     else if(match(TOKEN_LEFT_BRACE)) {
         beginScope();
         block();

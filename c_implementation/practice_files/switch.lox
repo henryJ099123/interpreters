@@ -1,0 +1,44 @@
+const my_letter = "b";
+print my_letter;
+
+
+switch(my_letter) {
+    case "a":
+        print "this is the letter a.";
+        print 1 + 1;
+    case "b":
+        print "This is b.";
+        print 4;
+    default:
+        print "not a letter.";
+        print 17;
+} 
+print "End of switch.";
+
+
+
+switch(my_letter) {
+    
+} 
+
+print "End of empty switch.";
+
+
+switch(my_letter) {
+    case "a":
+        print "this is a.";
+        print 4;
+    case false ? "b" + "" : "asdf" :
+        print "b again.";
+}
+
+print "End of switch with no default.";
+
+
+switch(my_letter) {
+    default:
+        print "generic.";
+} 
+
+print "End of switch with only default.";
+
