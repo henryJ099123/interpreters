@@ -1,0 +1,21 @@
+/*
+var i = 0;
+while(i < 4) {
+    var k = 4;
+    print k;
+    if(i 
+    continue;
+    i = i + 1;
+} 
+*/
+
+for(var i = 0; i < 5; i = i + 1) {
+    var k = 10;
+    if(i > 5) continue;
+    for(var j = 1; j > 0; j = j - 1) {
+        print j;
+    } 
+    print i;
+    continue;
+    print k;
+} 

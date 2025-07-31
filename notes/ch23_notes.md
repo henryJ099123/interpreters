@@ -58,6 +58,27 @@
     - all gets compiled down to primitive control flow operations the VM supports
 - clox is now Turing complete!
 
+## Design note: considering `goto` harmful
+
+- basically, our control flow is just `goto`...but why is this so bad?
+    - `goto` can make code unmaintainable, but that was a long time ago
+- Dijkstra's paper "slayed" the goto statement
+    - programmers write static text but care about its running/dynamic behavior
+    - we reason better statically than dynamically
+    - so, make dynamic execution reflect the semantic structure as much as possible
+- if we ran a program and stopped it, what would we need to know to tell how far along it was?
+    - for simple statements, a line number
+    - for functions, you would need a call stack
+    - for loops, you would need an iteration count (a stack, for nested loops)
+- goto breaks this but Dijkstra doesn't explain it well...
+- it was proved that *any* control flow using goto can be expressed using sequencing, loops, and branches
+    - the clox intrepeter loop implements that unstructured control flow without any gotos
+- Nystrom wonders if there are some uses to goto
+    - try to break out of a series of nested loops?
+    - isn't `break` and `continue` sort of like `goto`?
+    - switching inside a loop?
+- his main concern is a language design and engineering decision based on fear
+
 ## Exercises
 
 1. add `switch` statements to clox with the following grammar:
@@ -73,3 +94,19 @@ defaultCase -> "default" ":" statement* ;
     - omit fallthrough and `break` statements; just jump to the end of the switch
     - this is just a glorified `if...else if...else if`
     - ok twas a bit harder than I expected but it's DONE!
+
+2. add `continue`, which jumps directly to the top of the nearest enclosing loop.
+i.e. it skips the rest of the loop body. In a `for` loop, it jumps to the increment clause.
+It is a compile-time error for a `continue` statement *not* in a loop.
+Be sure to think about *scope*. What should happen to local variables declared inside the loop
+body or in blocks nested inside the loop when a continue is executed?
+    - I would think you would just jump to the top, or to the loop jump statement
+    - but...what's all this about local variables?
+    - they should just vanish and start over...
+    - which means if there's a scope change I need to downgrade a scope 
+
+3. Control flow constructs have been pretty set-in-stone.
+Code has focused on being more declarative and high level, not on imperative control flow.
+Try to invent a useful, novel control flow feature for Lox.
+In practice, this isn't usually *that* helpful, as users in essence must be forced
+to learn an unfamiliar notation, but it's a good chance to practice design skills.

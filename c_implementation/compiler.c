@@ -54,6 +54,12 @@ typedef struct {
     Local locals[UINT8_COUNT];
     int localCount; // number of locals in scope
     int scopeDepth; // number of blocks surrounding the current bit of code
+    int breakLocations[UINT8_COUNT];
+    uint8_t breakCount;
+    int loopDepth;
+    int currentLoopScope;
+    int continueJumpLocation;
+    int breakJumpLocation;
 } Compiler;
 
 // global variables! Love it!
@@ -184,8 +190,17 @@ static void patchJump(int offset) {
 static void initCompiler(Compiler* compiler) {
     compiler->localCount = 0;
     compiler->scopeDepth = 0;
+    compiler->loopDepth = 0;
+    compiler->currentLoopScope = -1;
+    compiler->continueJumpLocation = -1;
+    compiler->breakJumpLocation = -1;
+    compiler->breakCount = 0;
     current = compiler;
 } 
+
+static int getScope() {
+    return current->scopeDepth;
+}
 
 static void endCompiler() {
     // temp
@@ -210,6 +225,19 @@ static void endScope() {
         // decrement number of locals
         current->localCount--;
     } 
+} 
+
+static void emitPopsForLocals(int scope) {
+    printf("loop scope: %d\n", current->currentLoopScope);
+    printf("scope: %d\n", scope);
+    printf("actual scope: %d\n", current->locals[current->localCount - 1].depth);
+    printf("loop depth: %d\n", current->loopDepth);
+    for(int i = current->localCount - 1; i >= 0 && current->locals[i].depth > scope; i--) {
+        // remove local variable from the stack, but not from the compiler
+        Local local = current->locals[i];
+        printf("name, scope: %.*s %d\n", local.name.length, local.name.start, local.depth);
+        emitByte(OP_POP);
+    }
 } 
 
 // must forward define these because they are used recursively
@@ -511,6 +539,8 @@ ParseRule rules[] = {
     [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
     [TOKEN_CONST]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_CONTINUE]      = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_BREAK]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
 };
@@ -641,6 +671,33 @@ static void printStatement() {
     emitByte(OP_PRINT);
 } 
 
+static void continueStatement() {
+    if(current->loopDepth == 0) {
+        error("Can't have 'continue' outside of a loop.");
+        return;
+    } 
+    consume(TOKEN_SEMICOLON, "Expect ';' after continue statement.");
+    // end as many scopes as needed to bust out of the loop
+    emitPopsForLocals(current->currentLoopScope);
+//  printf("where we jumpin: %d\n----\n", current->continueJumpLocation);
+    emitLoop(current->continueJumpLocation);
+} 
+
+static void breakStatement() {
+    if(current->loopDepth == 0) {
+        error("Can't have 'break' outside of a loop.");
+        return;
+    } 
+    consume(TOKEN_SEMICOLON, "Expect ';' after break statement.");
+    if(current->breakCount == UINT8_MAX) {
+        error("Too many break statements in this scope.");
+        return;
+    } 
+    emitPopsForLocals(current->currentLoopScope);
+    current->breakLocations[current->breakCount] = emitJump(OP_JUMP);    
+    current->breakCount++;
+} 
+
 static void whileStatement() {
     int loopStart = currentChunk()->count;
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
@@ -650,12 +707,32 @@ static void whileStatement() {
     // jump out of while loop
     int exitJump = emitJump(OP_JUMP_IF_FALSE);
     emitByte(OP_POP); // remove condition from the stack
+
+    // metadata for continue and break statements
+    int oldLoopScope = current->currentLoopScope;
+    int oldContinueJump = current->continueJumpLocation;
+    uint8_t numBreaks = current->breakCount;
+    current->currentLoopScope = getScope();
+    current->loopDepth++;
+    current->continueJumpLocation = loopStart;
     // body
     statement();
     emitLoop(loopStart);
 
     patchJump(exitJump);
     emitByte(OP_POP); // remove condition
+
+    for(int i = 0; i < current->breakCount; i++)
+        printf("break loc: %d\n", current->breakLocations[i]);
+
+    for(; current->breakCount > numBreaks; current->breakCount--)
+        patchJump(current->breakLocations[current->breakCount - 1]);
+
+    // we decrement the loop depth.
+    // take advantage of stack call here.
+    current->currentLoopScope = oldLoopScope;
+    current->continueJumpLocation = oldContinueJump;
+    current->loopDepth--;
 } 
 
 static void expressionStatement() {
@@ -700,10 +777,17 @@ static void forStatement() {
         emitLoop(loopStart); 
         loopStart = incrementStart; 
         patchJump(bodyJump); 
-
+        
         // flow looks like this:
         // condition => jump over increment => loop body => jump to increment => jump to condition
     } 
+    // metadata for continue and break statements
+    int oldLoopScope = current->currentLoopScope;
+    int oldContinueJump = current->continueJumpLocation;
+    uint8_t numBreaks = current->breakCount;
+    current->currentLoopScope = getScope();
+    current->loopDepth++;
+    current->continueJumpLocation = loopStart;
 
     statement();
 
@@ -717,6 +801,16 @@ static void forStatement() {
         patchJump(exitJump);
         emitByte(OP_POP); // remove condition
     } 
+    
+    for(; current->breakCount > numBreaks; current->breakCount--)
+        patchJump(current->breakLocations[current->breakCount - 1]);
+
+    // we decrement the loop depth.
+    // take advantage of stack call here.
+    current->currentLoopScope = oldLoopScope;
+    current->loopDepth--;
+    current->continueJumpLocation = oldContinueJump;
+
     endScope();
 } 
 
@@ -818,6 +912,8 @@ static void statement() {
     else if(match(TOKEN_WHILE)) whileStatement();
     else if(match(TOKEN_FOR)) forStatement();
     else if(match(TOKEN_SWITCH)) switchStatement();
+    else if(match(TOKEN_CONTINUE)) continueStatement();
+    else if(match(TOKEN_BREAK)) breakStatement();
     else if(match(TOKEN_LEFT_BRACE)) {
         beginScope();
         block();
