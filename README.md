@@ -216,3 +216,4 @@ Anything italicized has been implemented
 - fix an error I think with the `_LONG` varieties and the now-used method for global variables
     - need to do this for local variables too, as the locals depth is static
 - allow more than 256 locally scoped variables at a time
+- do exercise 23.4

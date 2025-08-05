@@ -18,6 +18,18 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
 
 static void freeObject(Obj* object) {
 	switch(object->type) {
+        case OBJ_FUNCTION: {
+            ObjFunction* function = (ObjFunction*) object;
+            freeChunk(&function->chunk);
+            FREE(ObjFunction, object);
+            // there is no need here to free the function's name
+            // because it is an ObjString.
+            // so, the garbage collector can manage its lifetime for us.
+            break;
+        } 
+        case OBJ_NATIVE:
+            FREE(ObjNative, object);
+            break;
 		case OBJ_STRING: {
 			ObjString* string = (ObjString*) object;
 			// free whatever's been allocated

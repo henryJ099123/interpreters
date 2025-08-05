@@ -104,9 +104,12 @@ body or in blocks nested inside the loop when a continue is executed?
     - but...what's all this about local variables?
     - they should just vanish and start over...
     - which means if there's a scope change I need to downgrade a scope 
+    - done! And added `break` statements as well
 
 3. Control flow constructs have been pretty set-in-stone.
 Code has focused on being more declarative and high level, not on imperative control flow.
 Try to invent a useful, novel control flow feature for Lox.
 In practice, this isn't usually *that* helpful, as users in essence must be forced
 to learn an unfamiliar notation, but it's a good chance to practice design skills.
+    - This could just be my `aftereach` implementation...which I *could* do now
+    - I might save this for later
