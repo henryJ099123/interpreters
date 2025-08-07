@@ -46,7 +46,13 @@ typedef struct {
     Token name; // name of variable
     int depth; // scope depth of block where local is declared
     bool modifiable; // for mutable vs. immutable variables
+    bool isCaptured; // for if a closure got it
 } Local;
+
+typedef struct {
+    uint8_t index; // stores local slot the upvalue is capturing
+    bool isLocal;
+} Upvalue;
 
 // tiny enum
 typedef enum {
@@ -64,6 +70,7 @@ typedef struct Compiler {
 
     Local locals[UINT8_COUNT];
     int localCount; // number of locals in scope
+    Upvalue upvalues[UINT8_COUNT];
     int scopeDepth; // number of blocks surrounding the current bit of code
 
     // stuff for break and continue
@@ -152,6 +159,20 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
     emitByte(byte2);
 } 
 
+static void emitLongIndex(int constant) {
+    writeLongConstant(currentChunk(), constant, parser.previous.line);
+} 
+
+static void emitByteAndIndex(uint8_t byteShort, uint8_t byteLong, Value value) {
+    int constant = addConstant(currentChunk(), value);
+    if(constant <= UINT8_MAX) {
+        emitBytes(byteShort, (uint8_t) constant);
+    } else {
+        emitByte(byteLong);
+        emitLongIndex(constant);
+    } 
+} 
+
 // emits a new loop instruction that unconditionally jumps backwards
 static void emitLoop(int loopStart) {
     // OP_LOOP goes backwards
@@ -168,10 +189,6 @@ static int emitJump(uint8_t instruction) {
     emitByte(0xff);
     // emits an int of the location of the second emitByte here
     return currentChunk()->count - 2;
-} 
-
-static void emitLongIndex(int constant) {
-    writeLongConstant(currentChunk(), constant, parser.previous.line);
 } 
 
 static void emitReturn() {
@@ -229,6 +246,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
     // claims slot 0 of the locals array for the VM's internal use
     Local* local = &current->locals[current->localCount++];
     local->depth = 0;
+    local->isCaptured = false; // will be capturable by the user later!
     local->name.start = "";
     local->name.length = 0;
 } 
@@ -263,7 +281,11 @@ static void endScope() {
     while(current->localCount > 0 &&
           current->locals[current->localCount - 1].depth > current->scopeDepth) {
         // remove local variable from the stack
-        emitByte(OP_POP);
+        if(current->locals[current->localCount - 1].isCaptured)
+            // tells runtime exactly when a local must move to the heap
+            emitByte(OP_CLOSE_UPVALUE);
+        else
+            emitByte(OP_POP);
         // decrement number of locals
         current->localCount--;
     } 
@@ -436,6 +458,61 @@ static int resolveLocal(Compiler* compiler, Token* name, bool* modifiable) {
     return -1;
 } 
 
+// create an upvalue to add to compiler
+// indices in the compiler's array here match the indices where upvalues will be
+// in the closure at runtime
+static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
+    int upvalueCount = compiler->function->upvalueCount;
+
+    // return upvalue index if it already exists
+    for(int i = 0; i < upvalueCount; i++) {
+        Upvalue* upvalue = &compiler->upvalues[i];
+        if(upvalue->index == index && upvalue->isLocal == isLocal)
+            return i;
+    } 
+
+    if(upvalueCount == UINT8_COUNT) {
+        error("Too many closure variables in this function.");
+        return 0;
+    } 
+
+    compiler->upvalues[upvalueCount].isLocal = isLocal;
+    // closure tracks which variable in enclosing function must be captured
+    compiler->upvalues[upvalueCount].index = index;
+    return compiler->function->upvalueCount++;
+} 
+
+static int resolveUpvalue(Compiler* compiler, Token* name, bool* modifiable) {
+    // if this is top-level function stop here
+    // another base-case
+    if(compiler->enclosing == NULL) return -1;
+
+    // otherwise find this local variable in the scope just outside
+
+    int local = resolveLocal(compiler->enclosing, name, modifiable);
+
+    // first look for a matching local variable in the enclosing function
+    // if it is there, we capture that local and return
+    if(local != -1) {
+        // this local has become captured
+        compiler->enclosing->locals[local].isCaptured = true;
+        return addUpvalue(compiler, (uint8_t) local, true); // this *was* just outside
+    }
+
+    // we have recursive action both before and after the call
+    // look for local beyond immediately enclosing function
+    // this call will eventually end in the above case,
+    // so this value here will be the *upvalue* for that local
+    int upvalue = resolveUpvalue(compiler->enclosing, name, modifiable);
+   
+    // if an outer-outer function's local was captured,
+    // we take the index for that upvalue and add it to this compiler
+    if(upvalue != -1)
+        return addUpvalue(compiler, (uint8_t) upvalue, false); // this was *not* just outside
+    
+    return -1;
+} 
+
 // initializes the next available local in the compiler's array of variables
 static void addLocal(Token name, bool modifiable) {
     if(current->localCount == UINT8_COUNT) {
@@ -446,6 +523,7 @@ static void addLocal(Token name, bool modifiable) {
     local->name = name;
     local->depth = -1;
     local->modifiable = modifiable;
+    local->isCaptured = false;
 } 
 
 // global variables are late bound and thus ignored here
@@ -475,7 +553,12 @@ static void namedVariable(Token name, bool canAssign) {
     if(arg != -1) {
         getOp = OP_GET_LOCAL;
         setOp = OP_SET_LOCAL;
-    } else {
+    } else if((arg = resolveUpvalue(current, &name, &modifiable)) != -1) {
+        // could be the case this is local variable of an enclosing function
+        getOp = OP_GET_UPVALUE;
+        setOp = OP_SET_UPVALUE;
+    } 
+    else {
         // reassigns *arg* to point to the table from before
         // as this is not defining anything, we don't want to mess with the global const table
         arg = identifierConstant(&name, true);
@@ -743,7 +826,14 @@ static void function(FunctionType type) {
     // no `endScope()` call because the Compiler is ended completely at the end of the body
     ObjFunction* function = endCompiler();
 
-    emitConstant(OBJ_VAL(function));
+    emitByteAndIndex(OP_CLOSURE, OP_CLOSURE_LONG, OBJ_VAL(function));
+
+    // has variable size encoding
+    // for each upvalue, we have two single-byte operands that specify what the upvalue captures
+    for(int i = 0; i < function->upvalueCount; i++) {
+        emitByte(compiler.upvalues[i].isLocal ? : 0);
+        emitByte(compiler.upvalues[i].index);
+    } 
 }
 
 static void funDeclaration() {

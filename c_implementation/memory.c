@@ -18,6 +18,12 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
 
 static void freeObject(Obj* object) {
 	switch(object->type) {
+        case OBJ_CLOSURE: {
+            // we do *not* free the function because the closure does not own it
+            // there could be several closures that reference the same function
+            FREE(ObjClosure, object);
+            break;
+        } 
         case OBJ_FUNCTION: {
             ObjFunction* function = (ObjFunction*) object;
             freeChunk(&function->chunk);
@@ -40,6 +46,10 @@ static void freeObject(Obj* object) {
 
 			break;
 		} 
+        case OBJ_UPVALUE:
+            // multiple upvalues can close over the same variable
+            FREE(ObjUpvalue, object);
+            break;
 	} 
 } 
 

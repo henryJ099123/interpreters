@@ -1,0 +1,2 @@
+print "Enter input:";
+print "You entered " + inputLine();

@@ -1,0 +1,5 @@
+var start = clock(0);
+
+var end = clock();
+
+print end - start;

@@ -12,7 +12,7 @@
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
 typedef struct {
-    ObjFunction* function;
+    ObjClosure* closure;
     // instead of storing return addresses the caller stores its own `ip`
     // when returning, the VM will jump to the ip of the caller's CallFrame
     uint8_t* ip;
@@ -29,6 +29,7 @@ typedef struct {
 	Table globalNames;
 	ValueArray globalValues;
 	Table strings;
+    ObjUpvalue* openUpvalues;
 	Obj* objects;
 } VM;
 
