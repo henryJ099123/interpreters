@@ -230,15 +230,25 @@ This means we have to load and store the local `ip` back into the correct CallFr
 starting and ending function calls. Implement this optimization.
 Does it affect performance?
 Is the complexity worth it?
+    - It actually made things *slower* when I did it...so I didn't do this.
+    - Nystrom's machine saw a performance boost though...
+    - maybe Clang is just a way better compiler
 
 2. Native function calls are fast because the number of arguments are not validated.
 This isn't the best...arity checking is kind of important.
 Add arity checking.
+    - see next one
 
 3. There's no way for a native function to signal a runtime error right now.
 This is also kind of important, as native functions are called from Lox's dynamic perspective
 Extend native funtions to support runtime errors.
+    - decided to do this differently than Nystrom as I didn't want to directly modify the Value stack
+    - instead passed a pointer to a boolean in each native function
+    - if it's false, then there was no error, so the return value is treated as normal
+    - if it's true, then there was an error, so the return value is treated as an error message
+    - then the caller of the native function (`callValue`) reports the runtime error
 
 4. Add some more native functions to do things you find useful.
 Write some programs using those. What did you add?
 How do they affect the feel of the language and it's practicality?
+    - makes it way more fun to use!

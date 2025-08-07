@@ -1,0 +1,2 @@
+print sqrt(64);
+print sqrt("hello");

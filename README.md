@@ -217,3 +217,4 @@ Anything italicized has been implemented
     - need to do this for local variables too, as the locals depth is static
 - allow more than 256 locally scoped variables at a time
 - do exercise 23.4
+- add more native functions
