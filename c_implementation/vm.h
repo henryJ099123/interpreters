@@ -29,6 +29,9 @@ typedef struct {
 	ValueArray globalValues;
 	Table strings;
     ObjUpvalue* openUpvalues;
+
+    size_t bytesAllocated;
+    size_t nextGC;
 	Obj* objects;
     // for the garbage collector
     int grayCount;

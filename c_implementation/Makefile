@@ -1,6 +1,6 @@
 CC= clang
-CFLAGS= -Wall
-EX= cloxExec
+CFLAGS= -Wall -Wextra
+EX= clox
 SOURCES=$(wildcard *.c)
 OBJS= $(SOURCES:.c=.o)
 COMMON= common.h

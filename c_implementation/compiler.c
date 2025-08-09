@@ -292,14 +292,8 @@ static void endScope() {
 } 
 
 static void emitPopsForLocals(int scope) {
-    printf("loop scope: %d\n", current->currentLoopScope);
-    printf("scope: %d\n", scope);
-    printf("actual scope: %d\n", current->locals[current->localCount - 1].depth);
-    printf("loop depth: %d\n", current->loopDepth);
     for(int i = current->localCount - 1; i >= 0 && current->locals[i].depth > scope; i--) {
         // remove local variable from the stack, but not from the compiler
-        Local local = current->locals[i];
-        printf("name, scope: %.*s %d\n", local.name.length, local.name.start, local.depth);
         emitByte(OP_POP);
     }
 } 
