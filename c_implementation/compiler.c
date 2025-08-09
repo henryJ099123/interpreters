@@ -4,6 +4,7 @@
 
 #include "common.h"
 #include "compiler.h"
+#include "memory.h"
 #include "scanner.h"
 
 #ifdef DEBUG_PRINT_CODE
@@ -86,7 +87,6 @@ typedef struct Compiler {
 Parser parser;
 Compiler* current = NULL;
 // Chunk* compilingChunk;
-Table constantGlobals;
 
 // current chunk: the one owned by the function we compile
 static Chunk* currentChunk() {
@@ -423,15 +423,19 @@ static int identifierConstant(Token* name, bool modifiable) {
     // currently there is *memory leakage* if the string *is* found already because 
     // the string is just thrown away (variable_name)
     ObjString* variable_name = copyString(name->start, name->length);
+    // need to push this variable to keep it alive until added to these tables
+    push(OBJ_VAL(variable_name));
     Value index;
     if(!modifiable)
         tableSet(&constantGlobals, variable_name, NIL_VAL);
     if(tableGet(&vm.globalNames, variable_name, &index)) {
+        pop();
         return (int) AS_NUMBER(index);
     }
     int newIndex = vm.globalValues.count;
     writeValueArray(&vm.globalValues, UNDEF_VAL);
     tableSet(&vm.globalNames, variable_name, NUMBER_VAL((double) newIndex));
+    pop();
     return newIndex;
     // return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
 } 
@@ -1151,4 +1155,13 @@ ObjFunction* compile(const char* source) {
 
     ObjFunction* function = endCompiler();
     return parser.hadError ? NULL : function;
+} 
+
+void markCompilerRoots() {
+    Compiler* compiler = current;
+    // the function the compiler is currently compiling
+    while(compiler != NULL) {
+        markObject((Obj*) compiler->function);
+        compiler = compiler->enclosing;
+    } 
 } 

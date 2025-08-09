@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include "chunk.h"
 #include "memory.h"
+#include "vm.h"
 
 // a "constructor" for a chunk
 void initChunk(Chunk* chunk) {
@@ -91,7 +92,9 @@ int getLine(Chunk* chunk, int index) {
 } 
 
 int addConstant(Chunk* chunk, Value value) {
+    push(value);
 	writeValueArray(&chunk->constants, value);
+    pop();
 
 	// return index where the constant was appended
 	return chunk->constants.count - 1;

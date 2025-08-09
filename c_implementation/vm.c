@@ -107,8 +107,8 @@ static void defineNative(const char* name, NativeFn function) {
     push(OBJ_VAL(copyString(name, (int)strlen(name))));
     push(OBJ_VAL(newNative(function)));
     int newIndex = vm.globalValues.count;
-    writeValueArray(&vm.globalValues, vm.stack[1]);
     tableSet(&vm.globalNames, AS_STRING(vm.stack[0]), NUMBER_VAL((double) newIndex));
+    writeValueArray(&vm.globalValues, vm.stack[1]);
     pop();
     pop();
 } 
@@ -116,12 +116,20 @@ static void defineNative(const char* name, NativeFn function) {
 void initVM() {
 	resetStack();
 	vm.objects = NULL;
-//	initTable(&vm.globals);
+
+    // for GC
+    vm.grayCount = 0;
+    vm.grayCapacity = 0;
+    vm.grayStack = NULL;
+
+    // globals and constant globals
 	initTable(&vm.globalNames);
 	initValueArray(&vm.globalValues);
 
+    // strings
 	initTable(&vm.strings);
 
+    // native functions
     defineNative("clock", clockNative);
     defineNative("sqrt", sqrtNative);
     defineNative("inputLine", userInputNative);
@@ -251,8 +259,8 @@ static bool isFalsey(Value value) {
 } 
 
 static void concatenate() {
-	ObjString* b = AS_STRING(pop());
-	ObjString* a = AS_STRING(pop());
+	ObjString* b = AS_STRING(peek(0));
+	ObjString* a = AS_STRING(peek(1));
 
 	// this works if the string is always new...
 	// but no good if it already does.
@@ -279,6 +287,8 @@ static void concatenate() {
 	// use `takeString` here because the chars are already dynamically allocated
 	// no need to copy them
 	ObjString* result = takeString(chars, length);
+    pop();
+    pop();
 	push(OBJ_VAL(result));
 } 
 

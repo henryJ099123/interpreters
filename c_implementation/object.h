@@ -30,6 +30,7 @@ typedef enum {
 // object "metadata" or "inheritor"
 struct Obj {
 	ObjType type;
+    bool isMarked;
 	struct Obj* next;
 }; 
 

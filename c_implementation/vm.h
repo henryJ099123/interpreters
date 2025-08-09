@@ -25,12 +25,15 @@ typedef struct {
 
 	Value stack[STACK_MAX];
 	Value* stackTop; // ptr to top of stack
-//	Table globals;
 	Table globalNames;
 	ValueArray globalValues;
 	Table strings;
     ObjUpvalue* openUpvalues;
 	Obj* objects;
+    // for the garbage collector
+    int grayCount;
+    int grayCapacity;
+    Obj** grayStack;
 } VM;
 
 typedef enum {

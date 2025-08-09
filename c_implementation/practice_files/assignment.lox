@@ -1,5 +1,5 @@
 var breakfast = "beignets";
 var bev = "cafe au lait";
-breakfast = breakfast + " with " + bev;
+breakfast = breakfast + bev;
 print breakfast;
 
