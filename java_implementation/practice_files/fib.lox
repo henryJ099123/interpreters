@@ -3,6 +3,9 @@ fun fib(n) {
     return fib(n-1) + fib(n-2);
 }
 var start_time = clock();
+/*
 for(var i = 0; i < 35; i = i + 1)
     print i + " " + fib(i);
+*/
+print fib(40);
 print clock() - start_time;

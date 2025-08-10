@@ -31,6 +31,19 @@ static Obj* allocateObject(size_t size, ObjType type) {
 	return object;
 } 
 
+ObjInstance* newInstance(ObjClass* klass) {
+    ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
+    instance->klass = klass;
+    initTable(&instance->fields);
+    return instance;
+} 
+
+ObjClass* newClass(ObjString* name) {
+    ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+    klass->name = name;
+    return klass;
+} 
+
 ObjClosure* newClosure(ObjFunction* function) {
     // we know exactly how big the array needs to be
     ObjUpvalue** upvalues = ALLOCATE(ObjUpvalue*, function->upvalueCount);
@@ -151,6 +164,12 @@ static void printFunction(ObjFunction* function) {
 void printObject(Value value) {
 	switch(OBJ_TYPE(value)) {
         // these just look like functions to the user
+        case OBJ_INSTANCE:
+            printf("%s instance", AS_INSTANCE(value)->klass->name->chars);
+            break;
+        case OBJ_CLASS:
+            printf("%s", AS_CLASS(value)->name->chars);
+            break;
         case OBJ_CLOSURE:
             printFunction(AS_CLOSURE(value)->function);
             break;

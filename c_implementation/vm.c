@@ -78,13 +78,14 @@ static void resetStack() {
 // declaring our own variadic function!
 static void runtimeError(const char* format, ...) {
 	// variadic function whatnot
+    // prints the actual error message
 	va_list args;
 	va_start(args, format);
 	vfprintf(stderr, format, args);
 	va_end(args);
 	fputs("\n", stderr);
 
-    // essentially print out each function and line on the stack trace
+    // print the stack trace
     for(int i = vm.frameCount - 1; i >= 0; i--) {
         CallFrame* frame = &vm.frames[i];
         ObjFunction* function = frame->closure->function;
@@ -191,6 +192,13 @@ static bool call(ObjClosure* closure, int argCount) {
 static bool callValue(Value callee, int argCount) {
     if(IS_OBJ(callee)) {
         switch(OBJ_TYPE(callee)) {
+            case OBJ_CLASS: {
+                ObjClass* klass = AS_CLASS(callee);
+                // constructor call
+                // bypass the arguments? No popping?
+                vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
+                return true;
+            } 
             case OBJ_CLOSURE:
                 return call(AS_CLOSURE(callee), argCount);
             // call the native function
@@ -525,6 +533,69 @@ static InterpretResult run() {
 				*/
 				break;
 			} 
+            case OP_GET_PROPERTY: {
+                if(!IS_INSTANCE(peek(0))) {
+                    runtimeError("Only instances have properties.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+
+                ObjInstance* instance = AS_INSTANCE(peek(0));
+                ObjString* name = READ_STRING();
+                Value value;
+
+                if(tableGet(&instance->fields, name, &value)) {
+                    pop();
+                    push(value);
+                    break;
+                } 
+
+                runtimeError("Undefine property '%s'.", name->chars);
+                return INTERPRET_RUNTIME_ERROR;
+            } 
+            case OP_GET_PROPERTY_LONG: {
+                if(!IS_INSTANCE(peek(0))) {
+                    runtimeError("Only instances have properties.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+
+                ObjInstance* instance = AS_INSTANCE(peek(0));
+                ObjString* name = READ_LONG_STRING();
+                Value value;
+
+                if(tableGet(&instance->fields, name, &value)) {
+                    pop();
+                    push(value);
+                    break;
+                } 
+
+                runtimeError("Undefine property '%s'.", name->chars);
+                return INTERPRET_RUNTIME_ERROR;
+            } 
+            case OP_SET_PROPERTY: {
+                if(!IS_INSTANCE(peek(1))) {
+                    runtimeError("Only instances have fields to set.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                // stack is currently [ instance ][ Value ]
+                ObjInstance* instance = AS_INSTANCE(peek(1));
+                tableSet(&instance->fields, READ_STRING(), peek(0));
+                Value value = pop();
+                pop();
+                push(value);
+                break;
+            } 
+            case OP_SET_PROPERTY_LONG: {
+                if(!IS_INSTANCE(peek(1))) {
+                    runtimeError("Only instances have fields to set.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                // stack is currently [ instance ][ Value ]
+                ObjInstance* instance = AS_INSTANCE(peek(1));
+                tableSet(&instance->fields, READ_LONG_STRING(), peek(0));
+                Value value = pop();
+                pop();
+                push(value);
+            } 
             case OP_JUMP: {
                 uint16_t offset = READ_SHORT();
                 frame->ip += offset;
@@ -611,6 +682,9 @@ static InterpretResult run() {
                 frame = &vm.frames[vm.frameCount - 1];
                 break;
 			} 
+            case OP_CLASS:
+                push(OBJ_VAL(newClass(READ_STRING())));
+                break;
 		} 
 	} 
 #undef READ_BYTE

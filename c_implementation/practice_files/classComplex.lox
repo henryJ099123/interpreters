@@ -1,0 +1,5 @@
+fun a() {
+    class Klass { }
+    print Klass;
+} 
+a();

@@ -163,7 +163,7 @@ static void emitLongIndex(int constant) {
     writeLongConstant(currentChunk(), constant, parser.previous.line);
 } 
 
-static void emitByteAndIndex(uint8_t byteShort, uint8_t byteLong, Value value) {
+static void emitByteAndValue(uint8_t byteShort, uint8_t byteLong, Value value) {
     int constant = addConstant(currentChunk(), value);
     if(constant <= UINT8_MAX) {
         emitBytes(byteShort, (uint8_t) constant);
@@ -298,6 +298,11 @@ static void emitPopsForLocals(int scope) {
     }
 } 
 
+static int identifierConstant(Token* name) {
+return addConstant(currentChunk(), 
+    OBJ_VAL(copyString(name->start, name->length)));
+} 
+
 // must forward define these because they are used recursively
 static void expression();
 static void statement();
@@ -363,6 +368,22 @@ static void call(bool canAssign) {
     emitBytes(OP_CALL, argCount);
 } 
 
+static void dot(bool canAssign) {
+    consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
+    int name = identifierConstant(&parser.previous);
+
+    bool isSmall = name <= UINT8_MAX;
+
+    if(canAssign && match(TOKEN_EQUAL)) {
+        expression();
+        emitByte(isSmall ? OP_SET_PROPERTY : OP_SET_PROPERTY_LONG);
+    } else {
+        emitByte(isSmall ? OP_GET_PROPERTY : OP_GET_PROPERTY_LONG);
+    } 
+    if(name <= UINT8_MAX) emitByte((uint8_t) name);
+    else emitLongIndex(name);
+} 
+
 static void ternary(bool canAssign) {
     // right now, this must be the '?'
     // TokenType operatorType = parser.previous.type;
@@ -411,7 +432,7 @@ static bool isGlobalConstant(Token* name) {
 } 
 
 // will put the token's name on the Value array and puts its index on the code chunk 
-static int identifierConstant(Token* name, bool modifiable) {
+static int globalConstant(Token* name, bool modifiable) {
     
     // TODO: These changes result in memory problems with the garbage collector
     // currently there is *memory leakage* if the string *is* found already because 
@@ -559,7 +580,7 @@ static void namedVariable(Token name, bool canAssign) {
     else {
         // reassigns *arg* to point to the table from before
         // as this is not defining anything, we don't want to mess with the global const table
-        arg = identifierConstant(&name, true);
+        arg = globalConstant(&name, true);
         modifiable = !isGlobalConstant(&name);
         getOp = arg <= UINT8_MAX ? OP_GET_GLOBAL : OP_GET_GLOBAL_LONG;
         setOp = arg <= UINT8_MAX ? OP_SET_GLOBAL : OP_SET_GLOBAL_LONG;
@@ -646,7 +667,7 @@ ParseRule rules[] = {
     [TOKEN_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE}, 
     [TOKEN_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},
     [TOKEN_COMMA]         = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_DOT]           = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_DOT]           = {NULL,     dot,    PREC_CALL},
     [TOKEN_MINUS]         = {unary,    binary, PREC_TERM},
     [TOKEN_PLUS]          = {NULL,     binary, PREC_TERM},
     [TOKEN_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
@@ -737,7 +758,7 @@ static int parseVariable(const char* errorMessage, bool modifiable) {
     
     // exit function if in local scope, so dummy table index returned
     if(current->scopeDepth > 0) return 0;
-    return identifierConstant(&parser.previous, modifiable);
+    return globalConstant(&parser.previous, modifiable);
 } 
 
 static void markInitialized() {
@@ -824,7 +845,7 @@ static void function(FunctionType type) {
     // no `endScope()` call because the Compiler is ended completely at the end of the body
     ObjFunction* function = endCompiler();
 
-    emitByteAndIndex(OP_CLOSURE, OP_CLOSURE_LONG, OBJ_VAL(function));
+    emitByteAndValue(OP_CLOSURE, OP_CLOSURE_LONG, OBJ_VAL(function));
 
     // has variable size encoding
     // for each upvalue, we have two single-byte operands that specify what the upvalue captures
@@ -833,6 +854,33 @@ static void function(FunctionType type) {
         emitByte(compiler.upvalues[i].index);
     } 
 }
+
+static void classDeclaration() {
+    consume(TOKEN_IDENTIFIER, "Expect class name.");
+    // put the name onto the constant table
+    int nameConstant = identifierConstant(&parser.previous); 
+    
+    declareVariable(true);
+
+    // instruction to create class object at runtime
+    // this index is FOR THE CONSTANT TABLE
+    if(nameConstant <= UINT8_MAX)
+        emitBytes(OP_CLASS, (uint8_t) nameConstant);
+    else {
+        emitByte(OP_CLASS_LONG);
+        emitLongIndex(nameConstant);
+    } 
+
+    // bind it to that variable
+    // this index IS FOR GLOBAL/LOCAL VARIABLES
+    // BECAUSE THIS USES A SEPARATE TABLE FOR GLOBALS NOW
+    // D:<<<<<<< this is not intuitive. why did I do it like this.
+    // OHHH, because I did an exercise! Great.`
+    defineVariable(getScope() == 0 ? globalConstant(&parser.previous, false) : 0);
+
+    consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+    consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+} 
 
 static void funDeclaration() {
     uint8_t global = parseVariable("Expect function name.", true);
@@ -1106,7 +1154,8 @@ static void switchStatement() {
 } 
 
 static void declaration() {
-    if(match(TOKEN_FUN)) funDeclaration();
+    if(match(TOKEN_CLASS)) classDeclaration();
+    else if(match(TOKEN_FUN)) funDeclaration();
     else if(match(TOKEN_VAR)) varDeclaration(true);
     else if(match(TOKEN_CONST)) varDeclaration(false);
     else statement();

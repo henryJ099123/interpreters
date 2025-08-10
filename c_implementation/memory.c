@@ -82,6 +82,16 @@ static void blackenObject(Obj* object) {
     printf("\n");
 #endif
     switch(object->type) {
+        case OBJ_INSTANCE: {
+            ObjInstance* instance = (ObjInstance*) object;
+            markObject((Obj*) instance->klass);
+            markTable(&instance->fields); // need to keep the table of vals around too
+            break;
+        } 
+        case OBJ_CLASS: {
+            ObjClass* klass = (ObjClass*) object;
+            markObject((Obj*)klass->name);
+        } 
         case OBJ_CLOSURE: {
             // closures reference the function it wraps and the array of pointers
             // to the upvalue it captures
@@ -114,6 +124,17 @@ static void freeObject(Obj* object) {
 #endif
 
 	switch(object->type) {
+        case OBJ_INSTANCE: {
+            ObjInstance* instance = (ObjInstance*) object;
+            freeTable(&instance->fields); // owns its table
+            FREE(ObjInstance, object);
+            break;
+        } 
+        case OBJ_CLASS: {
+            // does not own its name
+            FREE(ObjClass, object);
+            break;
+        } 
         case OBJ_CLOSURE: {
             // we do *not* free the function because the closure does not own it
             // there could be several closures that reference the same function

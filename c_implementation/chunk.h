@@ -40,7 +40,13 @@ typedef enum {
 	OP_GET_GLOBAL_LONG,
 	OP_SET_GLOBAL,
 	OP_SET_GLOBAL_LONG,
-	OP_RETURN
+    OP_GET_PROPERTY,
+    OP_GET_PROPERTY_LONG,
+    OP_SET_PROPERTY,
+    OP_SET_PROPERTY_LONG,
+	OP_RETURN,
+    OP_CLASS,
+    OP_CLASS_LONG,
 } OpCode;
 
 // bytecode struct to hold instruction and other data
