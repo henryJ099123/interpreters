@@ -6,3 +6,5 @@ __pycache__/
 *.class
 *.o
 cloxExec
+clox
+jlox
