@@ -58,6 +58,8 @@ typedef struct {
 // tiny enum
 typedef enum {
     TYPE_FUNCTION,
+    TYPE_METHOD,
+    TYPE_INITIALIZER,
     TYPE_SCRIPT
 } FunctionType;
 
@@ -83,9 +85,16 @@ typedef struct Compiler {
     int breakJumpLocation;
 } Compiler;
 
+// nesting class declarations
+typedef struct ClassCompiler {
+    struct ClassCompiler* enclosing;
+    bool hasSuperclass;
+} ClassCompiler;
+
 // global variables! Love it!
 Parser parser;
 Compiler* current = NULL;
+ClassCompiler* currentClass = NULL;
 // Chunk* compilingChunk;
 
 // current chunk: the one owned by the function we compile
@@ -192,8 +201,11 @@ static int emitJump(uint8_t instruction) {
 } 
 
 static void emitReturn() {
-    // implicit `nil` when there is not a return statement
-    emitByte(OP_NIL);
+    if(current->type == TYPE_INITIALIZER)
+        emitBytes(OP_GET_LOCAL, 0);
+    else
+        // implicit `nil` when there is not a return statement
+        emitByte(OP_NIL);
     emitByte(OP_RETURN);
 } 
 
@@ -247,8 +259,15 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
     Local* local = &current->locals[current->localCount++];
     local->depth = 0;
     local->isCaptured = false; // will be capturable by the user later!
-    local->name.start = "";
-    local->name.length = 0;
+
+    // functions cannot have a variable named `this`, unless declared inside a method
+    if(type != TYPE_FUNCTION) {
+        local->name.start = "this";
+        local->name.length = 4;
+    } else {
+        local->name.start = "";
+        local->name.length = 0;
+    } 
 } 
 
 static int getScope() {
@@ -376,12 +395,30 @@ static void dot(bool canAssign) {
 
     if(canAssign && match(TOKEN_EQUAL)) {
         expression();
-        emitByte(isSmall ? OP_SET_PROPERTY : OP_SET_PROPERTY_LONG);
-    } else {
-        emitByte(isSmall ? OP_GET_PROPERTY : OP_GET_PROPERTY_LONG);
+        if(isSmall) {
+            emitBytes(OP_SET_PROPERTY, (uint8_t) name);
+        } else {
+            emitByte(OP_SET_PROPERTY_LONG);
+            emitLongIndex(name);
+        } 
+    } else if(match(TOKEN_LEFT_PAREN)) {
+        uint8_t argCount = argumentList();
+        if(isSmall) {
+            emitBytes(OP_INVOKE, (uint8_t) name);
+        } else {
+            emitByte(OP_INVOKE_LONG);
+            emitLongIndex(name);
+        } 
+        emitByte(argCount);
     } 
-    if(name <= UINT8_MAX) emitByte((uint8_t) name);
-    else emitLongIndex(name);
+    else {
+        if(isSmall) {
+            emitBytes(OP_GET_PROPERTY, (uint8_t) name);
+        } else {
+            emitByte(OP_GET_PROPERTY_LONG);
+            emitLongIndex(name);
+        } 
+    } 
 } 
 
 static void ternary(bool canAssign) {
@@ -608,6 +645,63 @@ static void variable(bool canAssign) {
     namedVariable(parser.previous, canAssign);
 } 
 
+// create a fake token
+static Token syntheticToken(const char* text) {
+    Token token;
+    token.start = text;
+    token.length = (int) strlen(text);
+    return token;
+} 
+
+// super is not a standalone expression
+// need to have '.' and a method afterward
+static void super_(bool canAssign) {
+    if(currentClass == NULL)
+        error("Can't use 'super' outside of a class.");
+    else if(!currentClass->hasSuperclass)
+        error("Can't use 'super' in a class with no superclass."); 
+
+    consume(TOKEN_DOT, "Expect '.' after 'super'.");
+    consume(TOKEN_IDENTIFIER, "Expect superclass method name.");
+
+    // store string of method name on the constant table
+    int name = identifierConstant(&parser.previous);
+
+    // adds variables for both the receiver and the superclass of surrounding method
+    namedVariable(syntheticToken("this"), false); // looks up `this`
+
+    // super is being immediately called
+    if(match(TOKEN_LEFT_PAREN)) {
+        // need to declare super *after* the argumentList
+        uint8_t argCount = argumentList();
+        namedVariable(syntheticToken("super"), false); // looks up `super`
+        if(name <= UINT8_MAX) {
+            emitBytes(OP_SUPER_INVOKE, (uint8_t) name);
+        } else {
+            emitByte(OP_SUPER_INVOKE_LONG);
+            emitLongIndex(name);
+        } 
+        emitByte(argCount);
+    // super is being stored in another variable
+    } else {
+        namedVariable(syntheticToken("super"), false);
+        if(name <= UINT8_MAX)
+            emitBytes(OP_GET_SUPER, (uint8_t) name);
+        else {
+            emitByte(OP_GET_SUPER_LONG);
+            emitLongIndex(name);
+        } 
+    } 
+} 
+
+static void this_(bool canAssign) {
+    if(currentClass == NULL) {
+        error("Can't use 'this' outside of a class method.");
+        return;
+    } 
+    variable(false);
+} 
+
 static void unary(bool canAssign) {
     // get the operator from beforehand
     TokenType operatorType = parser.previous.type;
@@ -697,11 +791,11 @@ ParseRule rules[] = {
     [TOKEN_OR]            = {NULL,     or_,    PREC_NONE},
     [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_SUPER]         = {super_,   NULL,   PREC_NONE},
     [TOKEN_SWITCH]        = {NULL,     NULL,   PREC_NONE},
     [TOKEN_CASE]          = {NULL,     NULL,   PREC_NONE},
     [TOKEN_DEFAULT]       = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_THIS]          = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_THIS]          = {this_,    NULL,   PREC_NONE},
     [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
     [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
     [TOKEN_CONST]         = {NULL,     NULL,   PREC_NONE},
@@ -855,8 +949,27 @@ static void function(FunctionType type) {
     } 
 }
 
+static void method() {
+    consume(TOKEN_IDENTIFIER, "Expect method name.");
+    int constant = identifierConstant(&parser.previous);
+
+    FunctionType type = TYPE_METHOD;
+    if(parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0)
+        type = TYPE_INITIALIZER;
+    function(type);
+
+    if(constant <= UINT8_MAX)
+        emitBytes(OP_METHOD, (uint8_t) constant);
+    else {
+        emitByte(OP_METHOD_LONG);
+        emitLongIndex(constant);
+    } 
+} 
+
 static void classDeclaration() {
     consume(TOKEN_IDENTIFIER, "Expect class name.");
+    Token className = parser.previous;
+
     // put the name onto the constant table
     int nameConstant = identifierConstant(&parser.previous); 
     
@@ -875,11 +988,48 @@ static void classDeclaration() {
     // this index IS FOR GLOBAL/LOCAL VARIABLES
     // BECAUSE THIS USES A SEPARATE TABLE FOR GLOBALS NOW
     // D:<<<<<<< this is not intuitive. why did I do it like this.
-    // OHHH, because I did an exercise! Great.`
+    // OHHH, because I did an exercise! Great.
     defineVariable(getScope() == 0 ? globalConstant(&parser.previous, false) : 0);
 
+    ClassCompiler classCompiler;
+    classCompiler.hasSuperclass = false;
+    classCompiler.enclosing = currentClass;
+    currentClass = &classCompiler;
+
+    // loads the class back onto the stack
+    namedVariable(className, false);
+
+    // pushes superclass onto the stsack if it exists
+    if(match(TOKEN_LESS)) {
+        consume(TOKEN_IDENTIFIER, "Expect superclass name.");
+        variable(false);
+        if(identifiersEqual(&className, &parser.previous))
+            error("Class cannot inherit from itself.");
+
+        // create new lexical scope for "super"
+        beginScope();
+        // need a `syntheticToken` here because no `super` token around
+        // and we need to store this superclass *now*
+        addLocal(syntheticToken("super"), false);
+        defineVariable(0);
+
+        namedVariable(className, false);
+        emitByte(OP_INHERIT);
+        classCompiler.hasSuperclass = true; 
+    } 
+    
+    // body of class
     consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+    while(!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) 
+        method();
+
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+    emitByte(OP_POP);
+
+    if(classCompiler.hasSuperclass)
+        endScope(); // discards `super`
+
+    currentClass = currentClass->enclosing;
 } 
 
 static void funDeclaration() {
@@ -917,8 +1067,11 @@ static void returnStatement() {
     // if no return value we emit a return, which implicitly handles the NIL
     if(match(TOKEN_SEMICOLON))
         emitReturn();
-    // otherwise we leave the return value on the stack
     else {
+        if(current->type == TYPE_INITIALIZER)
+            error("Can't return a value from an initializer.");
+            
+        // otherwise we leave the return value on the stack
         expression();
         consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
         emitByte(OP_RETURN);

@@ -82,6 +82,12 @@ static void blackenObject(Obj* object) {
     printf("\n");
 #endif
     switch(object->type) {
+        case OBJ_BOUND_METHOD: {
+            ObjBoundMethod* bound = (ObjBoundMethod*) object;
+            markValue(bound->receiver); // receiver must be kept for `this`
+            markObject((Obj*) bound->method); // technically unnecessary
+            break;
+        } 
         case OBJ_INSTANCE: {
             ObjInstance* instance = (ObjInstance*) object;
             markObject((Obj*) instance->klass);
@@ -91,6 +97,7 @@ static void blackenObject(Obj* object) {
         case OBJ_CLASS: {
             ObjClass* klass = (ObjClass*) object;
             markObject((Obj*)klass->name);
+            markTable(&klass->methods);
         } 
         case OBJ_CLOSURE: {
             // closures reference the function it wraps and the array of pointers
@@ -124,6 +131,10 @@ static void freeObject(Obj* object) {
 #endif
 
 	switch(object->type) {
+        case OBJ_BOUND_METHOD:
+            // does not *own* any of its references
+            FREE(ObjBoundMethod, object);
+            break;
         case OBJ_INSTANCE: {
             ObjInstance* instance = (ObjInstance*) object;
             freeTable(&instance->fields); // owns its table
@@ -132,6 +143,8 @@ static void freeObject(Obj* object) {
         } 
         case OBJ_CLASS: {
             // does not own its name
+            ObjClass* klass = (ObjClass*) object;
+            freeTable(&klass->methods);
             FREE(ObjClass, object);
             break;
         } 
@@ -195,6 +208,7 @@ static void markRoots() {
     markTable(&constantGlobals);
 
     markCompilerRoots();
+    markObject((Obj*) vm.initString);
 } 
 
 static void traceReferences() {

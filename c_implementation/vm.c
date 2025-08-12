@@ -132,6 +132,9 @@ void initVM() {
     // strings
 	initTable(&vm.strings);
 
+    vm.initString = NULL; // must zero out to prevent that
+    vm.initString = copyString("init", 4); // might trigger a GC
+
     // native functions
     defineNative("clock", clockNative);
     defineNative("sqrt", sqrtNative);
@@ -143,6 +146,7 @@ void freeVM() {
 	freeTable(&vm.globalNames);
 	freeValueArray(&vm.globalValues);
 	freeTable(&vm.strings);
+    vm.initString = NULL;
 	freeObjects();
 } 
 
@@ -192,11 +196,26 @@ static bool call(ObjClosure* closure, int argCount) {
 static bool callValue(Value callee, int argCount) {
     if(IS_OBJ(callee)) {
         switch(OBJ_TYPE(callee)) {
+            case OBJ_BOUND_METHOD: {
+                ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
+                vm.stackTop[-argCount - 1] = bound->receiver; // put instance in `this` slot
+                // call the closure with existing call invocation framework
+                return call(bound->method, argCount);
+            } 
             case OBJ_CLASS: {
                 ObjClass* klass = AS_CLASS(callee);
                 // constructor call
                 // bypass the arguments? No popping?
                 vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
+
+                // arguments implicitly forwarded to the initializer
+                Value initializer;
+                if(tableGet(&klass->methods, vm.initString, &initializer))
+                    return call(AS_CLOSURE(initializer), argCount);
+                else if(argCount != 0) {
+                    runtimeError("Expected 0 arguments but got %d.", argCount);
+                    return false;
+                } 
                 return true;
             } 
             case OBJ_CLOSURE:
@@ -220,6 +239,52 @@ static bool callValue(Value callee, int argCount) {
     } 
     runtimeError("Calling a non-callable thing.");
     return false;
+} 
+
+static bool invokeFromClass(ObjClass* klass, ObjString* name, int argCount) {
+    Value method;
+    if(!tableGet(&klass->methods, name, &method)) {
+        runtimeError("Undefined property '%s'.", name->chars);
+        return false;
+    } 
+
+    return call(AS_CLOSURE(method), argCount);
+} 
+
+static bool invoke(ObjString* name, int argCount) {
+    Value receiver = peek(argCount);
+
+    if(!IS_INSTANCE(receiver)) {
+        runtimeError("Only instances have methods.");
+        return false;
+    } 
+
+    ObjInstance* instance = AS_INSTANCE(receiver);
+
+    // handles case there's a function stored in a field
+    // sacrifice in performance
+    Value value;
+    if(tableGet(&instance->fields, name, &value)) {
+        vm.stackTop[-argCount - 1] = value;
+        return callValue(value, argCount);
+    } 
+
+    return invokeFromClass(instance->klass, name, argCount);
+} 
+
+static bool bindMethod(ObjClass* klass, ObjString* name) {
+    Value method;
+    // look for a method. If does not exist, bail.
+    if(!tableGet(&klass->methods, name, &method)) {
+        runtimeError("Undefined property '%s'.", name->chars);
+        return false;
+    } 
+
+    // wrap method in new ObjBoundMethod, and the instance on top of the stack
+    ObjBoundMethod* bound = newBoundMethod(peek(0), AS_CLOSURE(method));
+    pop(); // pop instance.
+    push(OBJ_VAL(bound)); // push method.
+    return true;
 } 
 
 static ObjUpvalue* captureUpvalue(Value* local) {
@@ -263,6 +328,17 @@ static void closeUpvalues(Value* last) {
         vm.openUpvalues = upvalue->next;
     } 
 } 
+
+// method closure is on top of stack from the `function` call in compiler
+// class is right below the closure
+// no runtime type checking because the compiler itself generated the code for this
+static void defineMethod(ObjString* name) {
+    Value method = peek(0);
+    ObjClass* klass = AS_CLASS(peek(1));
+    tableSet(&klass->methods, name, method);
+    pop();
+} 
+
 // only things that are false are nil and the actual value false
 static bool isFalsey(Value value) {
 	return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
@@ -543,14 +619,18 @@ static InterpretResult run() {
                 ObjString* name = READ_STRING();
                 Value value;
 
+                // first look for fields.
                 if(tableGet(&instance->fields, name, &value)) {
-                    pop();
+                    pop(); // the instance
                     push(value);
                     break;
                 } 
 
-                runtimeError("Undefine property '%s'.", name->chars);
-                return INTERPRET_RUNTIME_ERROR;
+                // now look for methods.
+                if(!bindMethod(instance->klass, name))
+                    return INTERPRET_RUNTIME_ERROR;
+
+                break;
             } 
             case OP_GET_PROPERTY_LONG: {
                 if(!IS_INSTANCE(peek(0))) {
@@ -595,6 +675,28 @@ static InterpretResult run() {
                 Value value = pop();
                 pop();
                 push(value);
+                break;
+            } 
+            case OP_GET_SUPER: {
+                // read property from constant table
+                ObjString* name = READ_STRING();
+                ObjClass* superclass = AS_CLASS(pop());
+
+                // no check for fields because `super` always resolves to methods
+
+                // look it up and create an ObjBoundMethod to bundle closure with current instance
+                // we pass the superclass for dispatch
+                if(!bindMethod(superclass, name))
+                    return INTERPRET_RUNTIME_ERROR;
+
+                break;
+            } 
+            case OP_GET_SUPER_LONG: {
+                ObjString* name = READ_LONG_STRING();
+                ObjClass* superclass = AS_CLASS(pop());
+                if(!bindMethod(superclass, name))
+                    return INTERPRET_RUNTIME_ERROR;
+                break;
             } 
             case OP_JUMP: {
                 uint16_t offset = READ_SHORT();
@@ -619,6 +721,49 @@ static InterpretResult run() {
                     return INTERPRET_RUNTIME_ERROR;
                 // puts a new CallFrame on the stack for the called function
                 // or just reaccesses the same one, for a native function
+                frame = &vm.frames[vm.frameCount - 1];
+                break;
+            } 
+            case OP_INVOKE: {
+                ObjString* method = READ_STRING();
+                int argCount = READ_BYTE();
+                if(!invoke(method, argCount))
+                    return INTERPRET_RUNTIME_ERROR;
+                // new callFrame for method
+                frame = &vm.frames[vm.frameCount - 1];
+                break;
+            } 
+            case OP_INVOKE_LONG: {
+                ObjString* method = READ_LONG_STRING();
+                int argCount = READ_BYTE();
+                if(!invoke(method, argCount))
+                    return INTERPRET_RUNTIME_ERROR;
+                frame = &vm.frames[vm.frameCount - 1];
+                break;
+            } 
+            case OP_SUPER_INVOKE: {
+                ObjString* method = READ_STRING();
+                int argCount = READ_BYTE();
+
+                // get the superclass on top
+                ObjClass* superclass = AS_CLASS(pop());
+
+                // invoke from the superclass specifically
+                if(!invokeFromClass(superclass, method, argCount))
+                    return INTERPRET_RUNTIME_ERROR;
+
+                // refresh frame
+                frame = &vm.frames[vm.frameCount - 1];
+                break;
+            } 
+            case OP_SUPER_INVOKE_LONG: {
+                ObjString* method = READ_LONG_STRING();
+                int argCount = READ_BYTE();
+                ObjClass* superclass = AS_CLASS(pop());
+
+                if(!invokeFromClass(superclass, method, argCount))
+                    return INTERPRET_RUNTIME_ERROR;
+
                 frame = &vm.frames[vm.frameCount - 1];
                 break;
             } 
@@ -684,6 +829,29 @@ static InterpretResult run() {
 			} 
             case OP_CLASS:
                 push(OBJ_VAL(newClass(READ_STRING())));
+                break;
+            case OP_CLASS_LONG:
+                push(OBJ_VAL(newClass(READ_LONG_STRING())));
+                break;
+            case OP_INHERIT: {
+                Value superclass = peek(1);
+
+                // ensure the superclass is actually a class
+                if(!IS_CLASS(superclass)) {
+                    runtimeError("Superclass must be a class.");  
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                ObjClass* subclass = AS_CLASS(peek(0));
+
+                // simply copies down the methods.
+                // overrides will happen when those are compiled, later
+                tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
+            } 
+            case OP_METHOD:
+                defineMethod(READ_STRING());
+                break;
+            case OP_METHOD_LONG:
+                defineMethod(READ_LONG_STRING());
                 break;
 		} 
 	} 

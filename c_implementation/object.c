@@ -31,6 +31,13 @@ static Obj* allocateObject(size_t size, ObjType type) {
 	return object;
 } 
 
+ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
+    ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
+    bound->receiver = receiver;
+    bound->method = method;
+    return bound;
+} 
+
 ObjInstance* newInstance(ObjClass* klass) {
     ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
     instance->klass = klass;
@@ -41,6 +48,7 @@ ObjInstance* newInstance(ObjClass* klass) {
 ObjClass* newClass(ObjString* name) {
     ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
     klass->name = name;
+    initTable(&klass->methods);
     return klass;
 } 
 
@@ -164,6 +172,9 @@ static void printFunction(ObjFunction* function) {
 void printObject(Value value) {
 	switch(OBJ_TYPE(value)) {
         // these just look like functions to the user
+        case OBJ_BOUND_METHOD:
+            printFunction(AS_BOUND_METHOD(value)->method->function);
+            break;
         case OBJ_INSTANCE:
             printf("%s instance", AS_INSTANCE(value)->klass->name->chars);
             break;

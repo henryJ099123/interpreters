@@ -1,0 +1,9 @@
+class Klass {
+    method(a) {
+        print this.x + a;
+    } 
+} 
+
+var instance = Klass();
+instance.x = 5;
+instance.method(5);

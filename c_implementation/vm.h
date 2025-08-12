@@ -28,6 +28,7 @@ typedef struct {
 	Table globalNames;
 	ValueArray globalValues;
 	Table strings;
+    ObjString* initString; // for speed
     ObjUpvalue* openUpvalues;
 
     size_t bytesAllocated;
