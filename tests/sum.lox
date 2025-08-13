@@ -1,0 +1,30 @@
+
+class Hello {
+    init() {
+        this.value = 0;
+    } 
+
+    iterate() {
+        this.value = this.value + 1;
+    } 
+    decrement() {
+        this.value = this.value - 1;
+    } 
+} 
+
+var time = clock();
+
+var h = Hello();
+
+for(var i = 0; i < 1000000; i = i + 1) {
+    for(var j = 0; j < 100; j = j + 1) {
+       h.iterate(); 
+    } 
+    for(var j = 0; j < 100; j = j + 1) {
+       h.decrement(); 
+    } 
+} 
+
+var elapsed = clock() - time;
+
+print elapsed;

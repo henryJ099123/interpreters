@@ -22,7 +22,7 @@ void freeTable(Table* table) {
 } 
 
 static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
-	uint32_t index = key->hash % capacity;
+	uint32_t index = key->hash & (capacity - 1);
 	// this is the earliest earliest_tombstone
 	Entry* earliest_tombstone = NULL;
 
@@ -45,7 +45,7 @@ static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
 		} else if(entry->key == key) {
 			return entry;
 		}
-		index = (index + 1) % capacity;
+		index = (index + 1) & (capacity - 1);
 	} 
 	// no need to check if we *can't* find a bucket because this is impossible
 } 
@@ -142,7 +142,7 @@ void tableAddAll(Table* from, Table* to) {
 // mostly redundant with findEntry, except we use a raw char and memcmp
 ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t hash) {
 	if(table->count == 0) return NULL;
-	uint32_t index = hash % table->capacity;
+	uint32_t index = hash & (table->capacity - 1);
 	for(;;) {
 		Entry* entry = &table->entries[index];
 		if(entry->key == NULL) {
@@ -152,7 +152,7 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
 				  memcmp(entry->key->chars, chars, length) == 0) {
 			return entry->key;
 		} 
-		index = (index + 1) % table->capacity;
+		index = (index + 1) & (table->capacity - 1);
 	} 
 } 
 

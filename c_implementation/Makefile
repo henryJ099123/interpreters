@@ -1,5 +1,6 @@
 CC= clang
-CFLAGS= -Wall -Wextra
+OPT= -O0
+CFLAGS= $(OPT) -Wall -Wextra
 EX= clox
 SOURCES=$(wildcard *.c)
 OBJS= $(SOURCES:.c=.o)

@@ -1,0 +1,38 @@
+// program to benchmark equality.
+
+var i = 0;
+
+var loopStart = clock();
+
+while(i < 10000000) {
+    i = i + 1;
+
+    1; 2; nil; "str";
+    1; 2; nil; "str";
+    1; 2; nil; "str";
+    1; 2; nil; "str";
+} 
+
+var loopEnd = clock() - loopStart;
+
+i = 0;
+
+var start = clock();
+
+while(i < 10000000) {
+    i = i + 1;
+
+    1 == 1; 1 == 2; 1 == nil; 1 == "str";
+    2 == 1; 2 == 2; 2 == nil; 2 == "str";
+    nil == 1; nil == 2; nil == nil; nil == "str";
+    "str" == 1; "str" == 2; "str" == nil; "str" == "str";
+} 
+
+var end = clock() - start;
+
+print "loop";
+print loopEnd;
+print "elapsed";
+print end;
+print "equals";
+print end - loopEnd;
