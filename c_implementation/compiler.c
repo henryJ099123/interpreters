@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "common.h"
 #include "compiler.h"
@@ -22,15 +23,15 @@ typedef struct {
 // as these are secrectly numbers we have an ascending number to represent precedence
 typedef enum {
     PREC_NONE,
-    PREC_ASSIGNMENT_TERNARY, // =
+    PREC_ASSIGNMENT_TERNARY, // =, +=, -=, /=
     PREC_OR, // or
     PREC_AND, // and
     PREC_EQUALITY, // == !=
     PREC_COMPARISON, // < > <= >=
     PREC_TERM, // + -
     PREC_FACTOR, // * /
-    PREC_UNARY, // ! -
-    PREC_CALL, // . ()
+    PREC_UNARY, // ! - -- ++
+    PREC_CALL, // . () -- ++
     PREC_PRIMARY
 } Precedence;
 
@@ -157,6 +158,20 @@ static bool match(TokenType type) {
     return true;
 } 
 
+static bool matchOne(int numArgs, ...) {
+    va_list types;
+    va_start(types, numArgs);
+    bool isMatch;
+    for(int i = 0; i < numArgs; i++) {
+        if(match(va_arg(types, TokenType))) {
+            va_end(types);
+            return true;
+        } 
+    } 
+    va_end(types);
+    return false;
+} 
+
 // append a byte to the chunk
 static void emitByte(uint8_t byte) {
     // get previous line's info there for runtime errors 
@@ -172,14 +187,18 @@ static void emitLongIndex(int constant) {
     writeLongConstant(currentChunk(), constant, parser.previous.line);
 } 
 
-static void emitByteAndValue(uint8_t byteShort, uint8_t byteLong, Value value) {
-    int constant = addConstant(currentChunk(), value);
-    if(constant <= UINT8_MAX) {
-        emitBytes(byteShort, (uint8_t) constant);
+static void emitByteAndIndex(uint8_t byteShort, uint8_t byteLong, int index) {
+    if(index <= UINT8_MAX) {
+        emitBytes(byteShort, (uint8_t) index);
     } else {
         emitByte(byteLong);
-        emitLongIndex(constant);
+        emitLongIndex(index);
     } 
+} 
+
+static void emitByteAndValue(uint8_t byteShort, uint8_t byteLong, Value value) {
+    int constant = addConstant(currentChunk(), value);
+    emitByteAndIndex(byteShort, byteLong, constant);
 } 
 
 // emits a new loop instruction that unconditionally jumps backwards
@@ -387,37 +406,57 @@ static void call(bool canAssign) {
     emitBytes(OP_CALL, argCount);
 } 
 
+static void getProperty(int index) {
+    emitByteAndIndex(OP_GET_PROPERTY, OP_GET_PROPERTY_LONG, index);
+} 
+
 static void dot(bool canAssign) {
     consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
     int name = identifierConstant(&parser.previous);
 
-    bool isSmall = name <= UINT8_MAX;
+    if(canAssign && matchOne(5, TOKEN_EQUAL, 
+                                TOKEN_PLUS_EQUAL, 
+                                TOKEN_MINUS_EQUAL, 
+                                TOKEN_STAR_EQUAL, 
+                                TOKEN_SLASH_EQUAL)) {
 
-    if(canAssign && match(TOKEN_EQUAL)) {
+        TokenType equalityType = parser.previous.type;
+
+        // syntactic sugars
+        if(equalityType != TOKEN_EQUAL)
+            getProperty(name);
+
         expression();
-        if(isSmall) {
-            emitBytes(OP_SET_PROPERTY, (uint8_t) name);
-        } else {
-            emitByte(OP_SET_PROPERTY_LONG);
-            emitLongIndex(name);
+
+        // syntactic sugars
+        switch(equalityType) {
+            case TOKEN_PLUS_EQUAL:
+                emitByte(OP_ADD);
+                break;
+            case TOKEN_MINUS_EQUAL:
+                emitByte(OP_SUBTRACT);
+                break;
+            case TOKEN_STAR_EQUAL:
+                emitByte(OP_MULTIPLY);
+                break;
+            case TOKEN_SLASH_EQUAL:
+                emitByte(OP_DIVIDE);
+                break;
+            case TOKEN_EQUAL:
+            default:
+                break;
         } 
+
+        // use the set property
+        emitByteAndIndex(OP_SET_PROPERTY, OP_SET_PROPERTY_LONG, name);
+
     } else if(match(TOKEN_LEFT_PAREN)) {
         uint8_t argCount = argumentList();
-        if(isSmall) {
-            emitBytes(OP_INVOKE, (uint8_t) name);
-        } else {
-            emitByte(OP_INVOKE_LONG);
-            emitLongIndex(name);
-        } 
+        emitByteAndIndex(OP_INVOKE, OP_INVOKE_LONG, name);
         emitByte(argCount);
     } 
     else {
-        if(isSmall) {
-            emitBytes(OP_GET_PROPERTY, (uint8_t) name);
-        } else {
-            emitByte(OP_GET_PROPERTY_LONG);
-            emitLongIndex(name);
-        } 
+        getProperty(name);
     } 
 } 
 
@@ -623,13 +662,48 @@ static void namedVariable(Token name, bool canAssign) {
         setOp = arg <= UINT8_MAX ? OP_SET_GLOBAL : OP_SET_GLOBAL_LONG;
     } 
 
-    if(canAssign && match(TOKEN_EQUAL)) {
+    if(canAssign && matchOne(5, TOKEN_EQUAL, 
+                                TOKEN_PLUS_EQUAL, 
+                                TOKEN_MINUS_EQUAL, 
+                                TOKEN_STAR_EQUAL, 
+                                TOKEN_SLASH_EQUAL)) {
+
         if(!modifiable) {
             // keep in mind: this *won't* evaluate the rest of the expression
             error("Cannot assign to a constant.");
             return;
         } 
+    
+        TokenType equalityType = parser.previous.type;
+
+        // get the variable for syntactic sugars
+        if(equalityType != TOKEN_EQUAL) {
+            emitByte(getOp);
+            if(getOp == OP_GET_GLOBAL_LONG) emitLongIndex(arg);
+            else emitByte((uint8_t) arg);
+        } 
+
         expression();
+
+        // syntactic sugars
+        switch(equalityType) {
+            case TOKEN_PLUS_EQUAL:
+                emitByte(OP_ADD);
+                break;
+            case TOKEN_MINUS_EQUAL:
+                emitByte(OP_SUBTRACT);
+                break;
+            case TOKEN_STAR_EQUAL:
+                emitByte(OP_MULTIPLY);
+                break;
+            case TOKEN_SLASH_EQUAL:
+                emitByte(OP_DIVIDE);
+                break;
+            case TOKEN_EQUAL:
+            default:
+                break;
+        } 
+
         // set expression.
         emitByte(setOp);
     } else {
@@ -804,6 +878,10 @@ ParseRule rules[] = {
     [TOKEN_BREAK]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_PLUS_EQUAL]    = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_MINUS_EQUAL]   = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_STAR_EQUAL]    = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_SLASH_EQUAL]   = {NULL,     NULL,   PREC_NONE},
 };
 
 static void parsePrecedence(Precedence precedence) {

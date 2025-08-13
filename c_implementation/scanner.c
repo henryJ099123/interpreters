@@ -235,10 +235,16 @@ Token scanToken() {
 		case ';': return makeToken(TOKEN_SEMICOLON);
 		case ',': return makeToken(TOKEN_COMMA);
 		case '.': return makeToken(TOKEN_DOT);
-		case '-': return makeToken(TOKEN_MINUS);
-		case '+': return makeToken(TOKEN_PLUS);
-		case '/': return makeToken(TOKEN_SLASH);
-		case '*': return makeToken(TOKEN_STAR);
+		case '-': 
+            if(match('=')) return makeToken(TOKEN_MINUS_EQUAL);
+            // if(match('-')) return makeToken(TOKEN_MINUS_MINUS);
+            return makeToken(TOKEN_MINUS);
+		case '+': 
+            if(match('=')) return makeToken(TOKEN_PLUS_EQUAL);
+            // if(match('+')) return makeToken(TOKEN_PLUS_PLUS);
+            return makeToken(TOKEN_PLUS);
+		case '/': return makeToken(match('=') ? TOKEN_SLASH_EQUAL : TOKEN_SLASH);
+		case '*': return makeToken(match('=') ? TOKEN_STAR_EQUAL : TOKEN_STAR);
 		case '?': return makeToken(TOKEN_QUESTION);
 		case ':': return makeToken(TOKEN_COLON);
 		case '!':

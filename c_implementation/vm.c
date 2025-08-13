@@ -69,21 +69,21 @@ static Value sqrtNative(int argCount, Value* args, bool* wasError) {
 } 
 
 static void resetStack() {
-	// move stack ptr all the way to the beginning
-	vm.stackTop = vm.stack;
+    // move stack ptr all the way to the beginning
+    vm.stackTop = vm.stack;
     vm.frameCount = 0;
     vm.openUpvalues = NULL;
 } 
 
 // declaring our own variadic function!
 static void runtimeError(const char* format, ...) {
-	// variadic function whatnot
+    // variadic function whatnot
     // prints the actual error message
-	va_list args;
-	va_start(args, format);
-	vfprintf(stderr, format, args);
-	va_end(args);
-	fputs("\n", stderr);
+    va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+    fputs("\n", stderr);
 
     // print the stack trace
     for(int i = vm.frameCount - 1; i >= 0; i--) {
@@ -99,7 +99,7 @@ static void runtimeError(const char* format, ...) {
         else fprintf(stderr, "%s()\n", function->name->chars);
     } 
 
-	resetStack();
+    resetStack();
 } 
 
 static void defineNative(const char* name, NativeFn function) {
@@ -115,8 +115,8 @@ static void defineNative(const char* name, NativeFn function) {
 } 
 
 void initVM() {
-	resetStack();
-	vm.objects = NULL;
+    resetStack();
+    vm.objects = NULL;
     vm.bytesAllocated = 0;
     vm.nextGC = 1024 * 1024; // magic number
 
@@ -126,11 +126,11 @@ void initVM() {
     vm.grayStack = NULL;
 
     // globals and constant globals
-	initTable(&vm.globalNames);
-	initValueArray(&vm.globalValues);
+    initTable(&vm.globalNames);
+    initValueArray(&vm.globalValues);
 
     // strings
-	initTable(&vm.strings);
+    initTable(&vm.strings);
 
     vm.initString = NULL; // must zero out to prevent that
     vm.initString = copyString("init", 4); // might trigger a GC
@@ -142,33 +142,33 @@ void initVM() {
 } 
 
 void freeVM() {
-//	freeTable(&vm.globals);
-	freeTable(&vm.globalNames);
-	freeValueArray(&vm.globalValues);
-	freeTable(&vm.strings);
+//  freeTable(&vm.globals);
+    freeTable(&vm.globalNames);
+    freeValueArray(&vm.globalValues);
+    freeTable(&vm.strings);
     vm.initString = NULL;
-	freeObjects();
+    freeObjects();
 } 
 
 void push(Value value) {
-	// dereference the stack pointer and assign it as so
-	*vm.stackTop = value;
-	// increment the stack pointer
-	vm.stackTop++;
+    // dereference the stack pointer and assign it as so
+    *vm.stackTop = value;
+    // increment the stack pointer
+    vm.stackTop++;
 } 
 
 Value pop() {
-	// move down the stack pointer
-	// marks that cell as no longer in use
-	vm.stackTop--;
-	// return what's there
-	return *vm.stackTop;
+    // move down the stack pointer
+    // marks that cell as no longer in use
+    vm.stackTop--;
+    // return what's there
+    return *vm.stackTop;
 } 
 
 // look as far into the stack as desired
 // need to subtract by 1 because this is the top of the stack
 static Value peek(int distance) {
-	return vm.stackTop[-1 - distance];
+    return vm.stackTop[-1 - distance];
 } 
 
 static bool call(ObjClosure* closure, int argCount) {
@@ -341,41 +341,41 @@ static void defineMethod(ObjString* name) {
 
 // only things that are false are nil and the actual value false
 static bool isFalsey(Value value) {
-	return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
+    return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 } 
 
 static void concatenate() {
-	ObjString* b = AS_STRING(peek(0));
-	ObjString* a = AS_STRING(peek(1));
+    ObjString* b = AS_STRING(peek(0));
+    ObjString* a = AS_STRING(peek(1));
 
-	// this works if the string is always new...
-	// but no good if it already does.
-	/*
-	ObjString* result = makeString(a->length + b->length);
-	memcpy(result->chars, a->chars, a->length);
-	memcpy(result->chars + a->length, b->chars, b->length);
-	result->chars[result->length] = '\0';
-	result->hash = hashString(result->chars, result->length);
-	*/
+    // this works if the string is always new...
+    // but no good if it already does.
+    /*
+    ObjString* result = makeString(a->length + b->length);
+    memcpy(result->chars, a->chars, a->length);
+    memcpy(result->chars + a->length, b->chars, b->length);
+    result->chars[result->length] = '\0';
+    result->hash = hashString(result->chars, result->length);
+    */
 
-	// dynamically make new string
-	int length = a->length + b->length;
-	char* chars = ALLOCATE(char, length+1);
-	memcpy(chars, a->chars, a->length);
-	memcpy(chars + a->length, b->chars, b->length);
-	chars[length] = '\0';
+    // dynamically make new string
+    int length = a->length + b->length;
+    char* chars = ALLOCATE(char, length+1);
+    memcpy(chars, a->chars, a->length);
+    memcpy(chars + a->length, b->chars, b->length);
+    chars[length] = '\0';
 
-	/*
-	// have to use copyString, because of the ways strings are stored
-	ObjString* result = copyString(chars, length);
-	*/
+    /*
+    // have to use copyString, because of the ways strings are stored
+    ObjString* result = copyString(chars, length);
+    */
 
-	// use `takeString` here because the chars are already dynamically allocated
-	// no need to copy them
-	ObjString* result = takeString(chars, length);
+    // use `takeString` here because the chars are already dynamically allocated
+    // no need to copy them
+    ObjString* result = takeString(chars, length);
     pop();
     pop();
-	push(OBJ_VAL(result));
+    push(OBJ_VAL(result));
 } 
 
 // the heart and soul of the virtual machine
@@ -384,7 +384,7 @@ static InterpretResult run() {
 
 #define READ_BYTE() (*frame->ip++) // advance!
 #define READ_BYTE_LONG() (0x00FFFFFF & \
-		((READ_BYTE() << 16) | (READ_BYTE() << 8) | (READ_BYTE())))
+        ((READ_BYTE() << 16) | (READ_BYTE() << 8) | (READ_BYTE())))
 #define READ_SHORT() (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
 #define READ_LONG_CONSTANT() (frame->closure->function->chunk.constants.values[ READ_BYTE_LONG() ] )
@@ -393,94 +393,94 @@ static InterpretResult run() {
 // need the `do`...`while` to force adding a semicolon at the end
 // this is...quite the macro. notice the wrapper to use is passed as a macro param
 #define BINARY_OP(valueType, op) \
-	do { \
-		if(!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
-			runtimeError("Operands must be numbers."); \
-			return INTERPRET_RUNTIME_ERROR; \
-		} \
-		double b = AS_NUMBER(pop()); \
-		double a = AS_NUMBER(pop()); \
-		push(valueType(a op b)); \
-	} while(false)
+    do { \
+        if(!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
+            runtimeError("Operands must be numbers."); \
+            return INTERPRET_RUNTIME_ERROR; \
+        } \
+        double b = AS_NUMBER(pop()); \
+        double a = AS_NUMBER(pop()); \
+        push(valueType(a op b)); \
+    } while(false)
 
-	for(;;) {
+    for(;;) {
 #ifdef DEBUG_TRACE_EXECUTION
-		printf("         ");
-		for(Value* slot = vm.stack; slot < vm.stackTop; slot++) {
-			printf("[ ");
-			printValue(*slot);
-			printf(" ]");
-		} 
-		printf("\n");
-		// recall that this instruction takes an offset --> ptr math
-		disassembleInstruction(&frame->closure->function->chunk, 
+        printf("         ");
+        for(Value* slot = vm.stack; slot < vm.stackTop; slot++) {
+            printf("[ ");
+            printValue(*slot);
+            printf(" ]");
+        } 
+        printf("\n");
+        // recall that this instruction takes an offset --> ptr math
+        disassembleInstruction(&frame->closure->function->chunk, 
                 (int)(frame->ip - frame->closure->function->chunk.code));
-		/*
-		printf("~~hash table of strs~~\n");
-		for(int i = 0; i < vm.strings.capacity; i++) {
-			if(vm.strings.entries[i].key != NULL)
-				printf("%d %d %s\n", i, vm.strings.entries[i].key->hash, vm.strings.entries[i].key->chars);
-		} 
-		printf("~~end~~\n");
-		*/
+        /*
+        printf("~~hash table of strs~~\n");
+        for(int i = 0; i < vm.strings.capacity; i++) {
+            if(vm.strings.entries[i].key != NULL)
+                printf("%d %d %s\n", i, vm.strings.entries[i].key->hash, vm.strings.entries[i].key->chars);
+        } 
+        printf("~~end~~\n");
+        */
 #endif
-		uint8_t instruction;
-		switch(instruction = READ_BYTE()) {
-			case OP_CONSTANT: {
-				Value constant = READ_CONSTANT();
-				push(constant);
-				break;
-		    }
-			case OP_CONSTANT_LONG: {
-				Value constant = READ_LONG_CONSTANT();
-				push(constant);
-				break;
-			} 
-			case OP_NIL: push(NIL_VAL); break;
-			case OP_TRUE: push(BOOL_VAL(true)); break;
-			case OP_FALSE: push(BOOL_VAL(false)); break;
-			case OP_EQUAL: {
-				Value b = pop();
-				Value a = pop();
-				push(BOOL_VAL(valuesEqual(a, b)));
-				break;
-		    } 
-			case OP_GREATER: BINARY_OP(BOOL_VAL, >); break;
-			case OP_LESS: BINARY_OP(BOOL_VAL, <); break;
-			case OP_NOT:
-				push(BOOL_VAL(isFalsey(pop()))); break;
-			// firsts pops off the value; then negates; then pops
-			case OP_NEGATE: 
-				if(!IS_NUMBER(peek(0))) {
-					runtimeError("Operand must be a number.");
-					return INTERPRET_RUNTIME_ERROR;
-				} 
-				push(NUMBER_VAL(-AS_NUMBER(pop()))); break;
-				// vm.stackTop[-1] = NUMBER_VAL(-AS_NUMBER(vm.stackTop[-1])); break;
-			case OP_ADD: {
-				if(IS_STRING(peek(0)) && IS_STRING(peek(1)))
-					concatenate();
-				else if(IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
-					double b = AS_NUMBER(pop());
-					double a = AS_NUMBER(pop());
-					push(NUMBER_VAL(a + b));
-				} else {
-					runtimeError("Operands must be numbers or strings.");
-					return INTERPRET_RUNTIME_ERROR;
-				} 
-				break;
-			}
-			case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
-			case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
-			case OP_DIVIDE: BINARY_OP(NUMBER_VAL, /); break;
-			// has already executed code for expression and leaves it on the stack
-			// note: no pushing!
-			case OP_PRINT: {
-				printValue(pop());
-				printf("\n");
-				break;
-			} 
-			case OP_POP: pop(); break;
+        uint8_t instruction;
+        switch(instruction = READ_BYTE()) {
+            case OP_CONSTANT: {
+                Value constant = READ_CONSTANT();
+                push(constant);
+                break;
+            }
+            case OP_CONSTANT_LONG: {
+                Value constant = READ_LONG_CONSTANT();
+                push(constant);
+                break;
+            } 
+            case OP_NIL: push(NIL_VAL); break;
+            case OP_TRUE: push(BOOL_VAL(true)); break;
+            case OP_FALSE: push(BOOL_VAL(false)); break;
+            case OP_EQUAL: {
+                Value b = pop();
+                Value a = pop();
+                push(BOOL_VAL(valuesEqual(a, b)));
+                break;
+            } 
+            case OP_GREATER: BINARY_OP(BOOL_VAL, >); break;
+            case OP_LESS: BINARY_OP(BOOL_VAL, <); break;
+            case OP_NOT:
+                push(BOOL_VAL(isFalsey(pop()))); break;
+            // firsts pops off the value; then negates; then pops
+            case OP_NEGATE: 
+                if(!IS_NUMBER(peek(0))) {
+                    runtimeError("Operand must be a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                push(NUMBER_VAL(-AS_NUMBER(pop()))); break;
+                // vm.stackTop[-1] = NUMBER_VAL(-AS_NUMBER(vm.stackTop[-1])); break;
+            case OP_ADD: {
+                if(IS_STRING(peek(0)) && IS_STRING(peek(1)))
+                    concatenate();
+                else if(IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
+                    double b = AS_NUMBER(pop());
+                    double a = AS_NUMBER(pop());
+                    push(NUMBER_VAL(a + b));
+                } else {
+                    runtimeError("Operands must be numbers or strings.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                break;
+            }
+            case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
+            case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
+            case OP_DIVIDE: BINARY_OP(NUMBER_VAL, /); break;
+            // has already executed code for expression and leaves it on the stack
+            // note: no pushing!
+            case OP_PRINT: {
+                printValue(pop());
+                printf("\n");
+                break;
+            } 
+            case OP_POP: pop(); break;
             case OP_DUP: push(peek(0)); break;
             case OP_GET_LOCAL: {
                 uint8_t slot = READ_BYTE();
@@ -503,112 +503,112 @@ static InterpretResult run() {
                 *frame->closure->upvalues[slot]->location = peek(0);
                 break;
             } 
-			case OP_DEFINE_GLOBAL: {
-				// take index off of chunk
-				// this represents some global variable
-				vm.globalValues.values[READ_BYTE()] = peek(0);
-				pop();
-				/*
-				ObjString* name = READ_STRING();
-				tableSet(&vm.globals, name, peek(0));
-				pop();
-				*/
-				break;
-			} 
-			case OP_DEFINE_GLOBAL_LONG: {
-				vm.globalValues.values[READ_BYTE_LONG()] = peek(0);
-				pop();
-			/*
-				ObjString* name = READ_LONG_STRING();
-				tableSet(&vm.globals, name, peek(0));
-				pop();
-			*/
-				break;
-			} 
-			case OP_GET_GLOBAL: {
-				uint8_t index = READ_BYTE();
-				if(IS_UNDEF(vm.globalValues.values[index])) {
-					ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
-					if(key == NULL)	runtimeError("Undefined variable.");
-					else runtimeError("Undefined variable '%s'.", key->chars);
-					return INTERPRET_RUNTIME_ERROR;
-				} 
-				push(vm.globalValues.values[index]);
-			/*
-				ObjString* name = READ_STRING();
-				Value value;
-				if(!tableGet(&vm.globals, name, &value)) {
-					runtimeError("Undefined variable '%s'.", name->chars);
-					return INTERPRET_RUNTIME_ERROR;
-				} 
-				push(value);
-			*/
-				break;
-			} 
-			case OP_GET_GLOBAL_LONG: {
-				uint32_t index = READ_BYTE_LONG();
-				if(IS_UNDEF(vm.globalValues.values[index])) {
-					ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
-					if(key == NULL)	runtimeError("Undefined variable.");
-					else runtimeError("Undefined variable '%s'.", key->chars);
-					return INTERPRET_RUNTIME_ERROR;
-				} 
-				push(vm.globalValues.values[index]);
-			/*
-				ObjString* name = READ_LONG_STRING();
-				Value value;
-				if(!tableGet(&vm.globals, name, &value)) {
-					runtimeError("Undefined variable '%s'.", name->chars);
-					return INTERPRET_RUNTIME_ERROR;
-				} 
-				push(value);
-			*/
-				break;
-			} 
-			case OP_SET_GLOBAL: {
-				uint8_t index = READ_BYTE();	
-				if(IS_UNDEF(vm.globalValues.values[index])) {
-					ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
-					if(key == NULL)	runtimeError("Trying to set undefined variable.");
-					else runtimeError("Trying to set undefined variable '%s'.", key->chars);
-					return INTERPRET_RUNTIME_ERROR;
-				} 
-				vm.globalValues.values[index] = peek(0);
-			/*
-				ObjString* name = READ_STRING();
-				// tableSet returns `true` if it is NEW thing being added
-				// i.e. runtime error if variable hasn't been declared
-				if(tableSet(&vm.globals, name, peek(0))) {
-					// need to delete the zombie
-					tableDelete(&vm.globals, name);
-					runtimeError("Undefined variable '%s' being assigned.", name->chars);
-					return INTERPRET_RUNTIME_ERROR;
-				} 
-			*/
-				break;
-			} 
-			case OP_SET_GLOBAL_LONG: {
-				uint8_t index = READ_BYTE_LONG();	
-				if(IS_UNDEF(vm.globalValues.values[index])) {
-					ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
-					if(key == NULL)	runtimeError("Trying to set undefined variable.");
-					else runtimeError("Trying to set undefined variable '%s'.", key->chars);
-					return INTERPRET_RUNTIME_ERROR;
-				} 
-				vm.globalValues.values[index] = peek(0);
-				/*
-				ObjString* name = READ_LONG_STRING();
-				// tableSet returns `true` if it is NEW thing being added
-				// i.e. runtime error if variable hasn't been declared
-				if(tableSet(&vm.globals, name, peek(0))) {
-					// need to delete the zombie
-					tableDelete(&vm.globals, name);
-					runtimeError("Undefined variable '%s' being assigned.", name->chars);
-					return INTERPRET_RUNTIME_ERROR;
-				} 
-				*/
-				break;
-			} 
+            case OP_DEFINE_GLOBAL: {
+                // take index off of chunk
+                // this represents some global variable
+                vm.globalValues.values[READ_BYTE()] = peek(0);
+                pop();
+                /*
+                ObjString* name = READ_STRING();
+                tableSet(&vm.globals, name, peek(0));
+                pop();
+                */
+                break;
+            } 
+            case OP_DEFINE_GLOBAL_LONG: {
+                vm.globalValues.values[READ_BYTE_LONG()] = peek(0);
+                pop();
+            /*
+                ObjString* name = READ_LONG_STRING();
+                tableSet(&vm.globals, name, peek(0));
+                pop();
+            */
+                break;
+            } 
+            case OP_GET_GLOBAL: {
+                uint8_t index = READ_BYTE();
+                if(IS_UNDEF(vm.globalValues.values[index])) {
+                    ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
+                    if(key == NULL) runtimeError("Undefined variable.");
+                    else runtimeError("Undefined variable '%s'.", key->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                push(vm.globalValues.values[index]);
+            /*
+                ObjString* name = READ_STRING();
+                Value value;
+                if(!tableGet(&vm.globals, name, &value)) {
+                    runtimeError("Undefined variable '%s'.", name->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                push(value);
+            */
+                break;
+            } 
+            case OP_GET_GLOBAL_LONG: {
+                uint32_t index = READ_BYTE_LONG();
+                if(IS_UNDEF(vm.globalValues.values[index])) {
+                    ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
+                    if(key == NULL) runtimeError("Undefined variable.");
+                    else runtimeError("Undefined variable '%s'.", key->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                push(vm.globalValues.values[index]);
+            /*
+                ObjString* name = READ_LONG_STRING();
+                Value value;
+                if(!tableGet(&vm.globals, name, &value)) {
+                    runtimeError("Undefined variable '%s'.", name->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                push(value);
+            */
+                break;
+            } 
+            case OP_SET_GLOBAL: {
+                uint8_t index = READ_BYTE();    
+                if(IS_UNDEF(vm.globalValues.values[index])) {
+                    ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
+                    if(key == NULL) runtimeError("Trying to set undefined variable.");
+                    else runtimeError("Trying to set undefined variable '%s'.", key->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                vm.globalValues.values[index] = peek(0);
+            /*
+                ObjString* name = READ_STRING();
+                // tableSet returns `true` if it is NEW thing being added
+                // i.e. runtime error if variable hasn't been declared
+                if(tableSet(&vm.globals, name, peek(0))) {
+                    // need to delete the zombie
+                    tableDelete(&vm.globals, name);
+                    runtimeError("Undefined variable '%s' being assigned.", name->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+            */
+                break;
+            } 
+            case OP_SET_GLOBAL_LONG: {
+                uint8_t index = READ_BYTE_LONG();   
+                if(IS_UNDEF(vm.globalValues.values[index])) {
+                    ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
+                    if(key == NULL) runtimeError("Trying to set undefined variable.");
+                    else runtimeError("Trying to set undefined variable '%s'.", key->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                vm.globalValues.values[index] = peek(0);
+                /*
+                ObjString* name = READ_LONG_STRING();
+                // tableSet returns `true` if it is NEW thing being added
+                // i.e. runtime error if variable hasn't been declared
+                if(tableSet(&vm.globals, name, peek(0))) {
+                    // need to delete the zombie
+                    tableDelete(&vm.globals, name);
+                    runtimeError("Undefined variable '%s' being assigned.", name->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                */
+                break;
+            } 
             case OP_GET_PROPERTY: {
                 if(!IS_INSTANCE(peek(0))) {
                     runtimeError("Only instances have properties.");
@@ -807,7 +807,7 @@ static InterpretResult run() {
                 closeUpvalues(vm.stackTop - 1);
                 pop(); // still need to pop the local
                 break;
-			case OP_RETURN: {
+            case OP_RETURN: {
                 // pop return value and discard called function's stack window
                 Value result = pop();
                 // close all remaining open upvalues owned by the returning function
@@ -826,7 +826,7 @@ static InterpretResult run() {
                 push(result);
                 frame = &vm.frames[vm.frameCount - 1];
                 break;
-			} 
+            } 
             case OP_CLASS:
                 push(OBJ_VAL(newClass(READ_STRING())));
                 break;
@@ -855,8 +855,8 @@ static InterpretResult run() {
             case OP_METHOD_LONG:
                 defineMethod(READ_LONG_STRING());
                 break;
-		} 
-	} 
+        } 
+    } 
 #undef READ_BYTE
 #undef READ_BYTE_LONG
 #undef READ_SHORT
@@ -878,6 +878,6 @@ InterpretResult interpret(const char* source) {
     push(OBJ_VAL(closure));
     call(closure, 0);
 
-	//execute the vm
-	return run();
+    //execute the vm
+    return run();
 } 
