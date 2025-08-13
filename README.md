@@ -152,7 +152,6 @@ The only ones where I got a bit of help from Nystrom's books were:
     } 
     ```
 
-
 ### TODO
 
 Anything italicized has been implemented
@@ -184,12 +183,156 @@ Anything italicized has been implemented
 
 ## clox
 
+### How to use
+
+You need some C compiler.
+The Makefile included in the folder
+`c_implementation` uses Clang,
+but you can edit the Makefile to replace it with gcc.
+
+Run
+```text
+make
+```
+to generate the executable. It will be called `clox`.
+
+Run
+```text
+./clox [some_file]
+```
+to run the interpreter on a `.lox` file.
+Or, for the REPL:
+```text
+./clox
+```
+Enjoy!
+
+### Summary of interpreter
+
+`clox` is an interpreter of the toy dynamic language Lox.
+
+It uses a single-pass compiler to generate bytecode
+that is then interpreted by a virtual machine
+to execute code.
+
+It is far faster than the `jlox` implementation:
+in generating the 40th fibonacci number
+(see `tests/fib.lox`), `clox` was nearly twice as fast as
+`jlox` on my machine with full optimizations for java.
+Without those optimizations, the java implementation
+does not even finish in a reasonable amount of time.
+
+The parser is a Pratt parser and thus requires no
+syntax tree shenanigans. It outputs bytecode
+that modifies the VM's stack to execute instructions.
+
+The dynamic values have two implementations:
+one via *tagged unions* and another via *NaN boxing*.
+An implementation can be chosen at compilation of the C
+program via a flag in the `common.h` file.
+
+All 'Object' types in Lox are treated the same
+via *struct inheritance*, where the first element of each
+Object subtype is an Obj struct, which allows pointer
+casting.
+
+Strings are *interned* in this implementation for fast equality checks.
+
+Global variables *in the book* are stored in a hash table at runtime.
+In my implementation, the compiler allocates an index for every global
+variable found in an array and passes these as indices to the VM,
+making accesses and mutations of global variables far faster.
+
+Local variables remain on the VM stack and are resolved as indices
+into the stack by the compiler. If they are part of a closure,
+they are "lifted" and pointed to by a heap-allocated *upvalue*.
+Each function holds an array of these at runtime.
+
+This implementation has a garbage collector to handle memory allocation.
+It uses a *mark-sweep* garbage collector that marks *roots*
+and anything referred to by those roots, and cleans memory
+at intervals based on the size of the heap after cleaning.
+It cleans interns strings only if they aren't pointed to by anything
+still live, which means they are *weak references*.
+
+Lox also supports classes and objects. Fields are accessed via a table
+on each instance. Methods are accessed via a table on each class.
+`this` is a local variable that is instantiated as receiver of the method.
+Inheritance is *copy-down*, meaning the subclass has no explicit reference
+to the superclass, except via a `super` invocation.
+
+The VM executes via a stack as well to perform computation
+and its instructions.
+
+I wrote a few short benchmarks to test differences in execution time.
+At full optimization for both `clox` and `jlox`, clox outperforms by
+a factor of at least 2.
+A hash table optimization improved the speed of a relevant benchmark
+by about 33%.
+NaN boxing optimization improved the speed of all benchmarks by about 10%.
+
+### Topics learned
+
+Granted, I knew a lot of these already,
+so consider (most) of these refreshers.
+
+- pointer and macro magic
+- tries (a finite automaton to complete strings for tokens)
+- single-pass compilation
+- variadic functions
+- hash tables with linear probing
+- string interning
+- bytecode (opcodes, arguments, encodings, etc.)
+- tagged unions
+- callframes
+- native functions
+- upvalues (a Lua implementation thing)
+- garbage collection
+- NaN boxing
+- benchmarking, performance, and optimization
+
+### My additions
+
+- line numbers for a piece of bytecode in the book are found via a parallel array
+of integers. Line numbers in *my* implementation uses run-length encoding
+to get each line number, which saves a lot on space for slightly slower runtime,
+but this only applies for debugging or errors, which is *not* the common case.
+- The constant table for each chunk of bytecode was capped at 256 values.
+I extended this to by dynamically large, which needed modified `_LONG` versions
+for almost every opcode the book uses.
+- Implemented multiline comments, like `/* */`.
+- Implemented `switch` statements. You can have an arbitrary number
+of cases because for completing a case, each case has a jump instruction to the next
+one that pushes the instruction pointer forward to the end of the statement.
+- Implemented runtime errors for native functions. I passed a pointer
+of a bool to each native function to see if there was an error. If there was,
+the VM unpacks the result as an error message. Otherwise, it treats it as
+a regular return value.
+- Added the ternary operator `? :` with C++ operator precedence.
+- Added `break` and `continue` statements.
+- Added some native functions like `sqrt` and `inputLine` (user input).
+    - These have runtime errors too!
+- Optimized the global variable lookups (following an exercise from the book).
+Globals are accessed via their string names in a table at runtime, normally.
+I changed it to be accesses to indices of an array at compile time,
+so rather than passing the string names as arguments to bytecode for the VM,
+the compiler passes the indices to this array, which each global variable
+gets a spot for. This speeds up execution a lot.
+- Implemented constant variables. Globals are done via a hash table that acts
+as a set at compile time. Locals store a field saying whether or not
+they are modifiable. In both cases,
+the actual VM's execution of variables, setting, and getting is all the same.
+Constants are only recognized at compile time.
+
 ### TODO
 
 - implement my own version of `malloc`
 - *implement faster line number implementation using run-length encoding*
 - *implement `OP_CONSTANT_LONG`*
 - *implement `/* */`*
+- *implement the `switch` statement*
+- *runtime errors for native functions*
+- *consts*
 - implement string interpolation with `${...}` syntax
 - fix the weird negation bug thing, see 17.4.3 comment
 - add the `?:` support
