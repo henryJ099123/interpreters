@@ -48,7 +48,7 @@ static int invokeLongInstruction(const char* name, Chunk* chunk, int offset) {
     constant &= 0x00FFFFFF;
     uint8_t argCount = chunk->code[offset + 4];
 
-    printf("%-16s (%d args) %4d '", name, argCount, constant);
+    printf(" // define the super variable as a local here%-16s (%d args) %4d '", name, argCount, constant);
     printValue(chunk->constants.values[constant]);
     printf("'\n");
     return offset + 5;
@@ -167,7 +167,7 @@ int disassembleInstruction(Chunk* chunk, int offset) {
             for(int j = 0; j < function->upvalueCount; j++) {
                 int isLocal = chunk->code[offset++];
                 int index = chunk->code[offset++];
-                printf("%04d      |                 %s %d\n",
+                printf("%04d    |                   %s %d\n",
                         offset - 2, isLocal ? "local" : "upvalue", index);
             } 
 
@@ -186,7 +186,7 @@ int disassembleInstruction(Chunk* chunk, int offset) {
             for(int j = 0; j < function->upvalueCount; j++) {
                 int isLocal = chunk->code[offset++];
                 int index = chunk->code[offset++];
-                printf("%04d      |                 %s %d\n",
+                printf("%04d    |                   %s %d\n",
                         offset - 2, isLocal ? "local" : "upvalue", index);
             } 
 

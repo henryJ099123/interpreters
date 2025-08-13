@@ -98,6 +98,7 @@ static void blackenObject(Obj* object) {
             ObjClass* klass = (ObjClass*) object;
             markObject((Obj*)klass->name);
             markTable(&klass->methods);
+            break;
         } 
         case OBJ_CLOSURE: {
             // closures reference the function it wraps and the array of pointers

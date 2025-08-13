@@ -846,6 +846,8 @@ static InterpretResult run() {
                 // simply copies down the methods.
                 // overrides will happen when those are compiled, later
                 tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
+                pop(); // pop off subclass
+                break;
             } 
             case OP_METHOD:
                 defineMethod(READ_STRING());

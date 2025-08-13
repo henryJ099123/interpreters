@@ -996,13 +996,13 @@ static void classDeclaration() {
     classCompiler.enclosing = currentClass;
     currentClass = &classCompiler;
 
-    // loads the class back onto the stack
-    namedVariable(className, false);
-
-    // pushes superclass onto the stsack if it exists
+    // pushes superclass onto the stack if it exists
     if(match(TOKEN_LESS)) {
         consume(TOKEN_IDENTIFIER, "Expect superclass name.");
+
+        // looks up the superclass
         variable(false);
+
         if(identifiersEqual(&className, &parser.previous))
             error("Class cannot inherit from itself.");
 
@@ -1011,12 +1011,15 @@ static void classDeclaration() {
         // need a `syntheticToken` here because no `super` token around
         // and we need to store this superclass *now*
         addLocal(syntheticToken("super"), false);
-        defineVariable(0);
+        defineVariable(0); // define the super variable as a local here
 
         namedVariable(className, false);
         emitByte(OP_INHERIT);
         classCompiler.hasSuperclass = true; 
     } 
+
+    // loads the class back onto the stack
+    namedVariable(className, false);
     
     // body of class
     consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
@@ -1024,7 +1027,7 @@ static void classDeclaration() {
         method();
 
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
-    emitByte(OP_POP);
+    emitByte(OP_POP); // discard subclass
 
     if(classCompiler.hasSuperclass)
         endScope(); // discards `super`
