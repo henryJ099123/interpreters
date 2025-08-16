@@ -1,0 +1,67 @@
+var x = 0;
+print --x;
+print x;
+print --x;
+print x;
+print ++x;
+print x;
+print ++x;
+print x;
+print "===========";
+
+{
+    var x = 0;    
+    print --x;
+    print x;
+    print --x;
+    print x;
+    print ++x;
+    print x;
+    print ++x;
+    print x;
+} 
+print "===========";
+
+var inc;
+
+fun closure() {
+    var x = 0;
+    fun middle() {
+        fun decrement() {
+            print --x;
+            print x;
+        } 
+        fun increment() {
+            print ++x;
+            print x;
+        } 
+        inc = increment;
+        return decrement;
+    } 
+    return middle;
+} 
+
+var decrement = closure()();
+decrement();
+decrement();
+inc();
+inc();
+
+print "===========";
+
+class Example {
+    init() {
+        this.x = 0;
+    } 
+} 
+
+x = Example();
+print --x.x;
+print x.x;
+print --x.x;
+print x.x;
+print ++x.x;
+print x.x;
+print ++x.x;
+print x.x;
+print "===========";

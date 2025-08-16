@@ -1,5 +1,5 @@
 CC= clang
-OPT= -O0
+OPT= -O3
 CFLAGS= $(OPT) -Wall -Wextra
 EX= clox
 SOURCES=$(wildcard *.c)

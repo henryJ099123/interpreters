@@ -242,6 +242,30 @@ int disassembleInstruction(Chunk* chunk, int offset) {
             return constantInstruction("OP_GET_SUPER", chunk, offset);
         case OP_GET_SUPER_LONG:
             return constantLongInstruction("OP_GET_SUPER_LONG", chunk, offset);
+        case OP_INC_LOCAL:
+            return byteInstruction("OP_INC_LOCAL", chunk, offset);
+        case OP_DEC_LOCAL:
+            return byteInstruction("OP_DEC_LOCAL", chunk, offset);
+        case OP_INC_UPVALUE:
+            return byteInstruction("OP_INC_UPVALUE", chunk, offset);
+        case OP_DEC_UPVALUE:
+            return byteInstruction("OP_DEC_UPVALUE", chunk, offset);
+        case OP_INC_GLOBAL:
+            return variableInstruction("OP_INC_GLOBAL", chunk, offset);
+        case OP_INC_GLOBAL_LONG:
+            return variableLongInstruction("OP_INC_GLOBAL_LONG", chunk, offset);
+        case OP_INC_PROPERTY:
+            return constantInstruction("OP_INC_PROPERTY", chunk, offset);
+        case OP_INC_PROPERTY_LONG:
+            return constantLongInstruction("OP_GET_PROPERTY_LONG", chunk, offset);
+        case OP_DEC_GLOBAL:
+            return variableInstruction("OP_DEC_GLOBAL", chunk, offset);
+        case OP_DEC_GLOBAL_LONG:
+            return variableLongInstruction("OP_DEC_GLOBAL_LONG", chunk, offset);
+        case OP_DEC_PROPERTY:
+            return constantInstruction("OP_DEC_PROPERTY", chunk, offset);
+        case OP_DEC_PROPERTY_LONG:
+            return constantLongInstruction("OP_GET_PROPERTY_LONG", chunk, offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset+1;

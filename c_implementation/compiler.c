@@ -645,17 +645,20 @@ static void namedVariable(Token name, bool canAssign) {
     bool modifiable = true;
     int arg = resolveLocal(current, &name, &modifiable);
 
+    // local variable
     if(arg != -1) {
         getOp = OP_GET_LOCAL;
         setOp = OP_SET_LOCAL;
+    // upvalue from closure
     } else if((arg = resolveUpvalue(current, &name, &modifiable)) != -1) {
         // could be the case this is local variable of an enclosing function
         getOp = OP_GET_UPVALUE;
         setOp = OP_SET_UPVALUE;
     } 
+    // global variable
     else {
-        // reassigns *arg* to point to the table from before
         // as this is not defining anything, we don't want to mess with the global const table
+        // see if arg is a global variable
         arg = globalConstant(&name, true);
         modifiable = !isGlobalConstant(&name);
         getOp = arg <= UINT8_MAX ? OP_GET_GLOBAL : OP_GET_GLOBAL_LONG;
@@ -792,6 +795,69 @@ static void unary(bool canAssign) {
     } 
 } 
 
+static void preIncr(bool canAssign) {
+    bool isAddition = parser.previous.type == TOKEN_PLUS_PLUS; // otherwise it's MINUS_MINUS
+    consume(TOKEN_IDENTIFIER, "Can only increment/decrement a variable or field.");
+
+    Token name = parser.previous;
+
+    uint8_t getOp, incOp;
+    bool modifiable = true;
+    int arg = resolveLocal(current, &parser.previous, &modifiable);
+
+    // local variable
+    if(arg != -1) {
+        getOp = OP_GET_LOCAL;
+        incOp = isAddition ? OP_INC_LOCAL : OP_DEC_LOCAL;
+    // upvalue from closure
+    } else if((arg = resolveUpvalue(current, &name, &modifiable)) != -1) {
+        // could be the case this is local variable of an enclosing function
+        getOp = OP_GET_UPVALUE;
+        incOp = isAddition ? OP_INC_UPVALUE : OP_DEC_UPVALUE;
+    } 
+    // global variable
+    else {
+        // as this is not defining anything, we don't want to mess with the global const table
+        // see if arg is a global variable
+        arg = globalConstant(&name, true);
+        modifiable = !isGlobalConstant(&name);
+        getOp = arg <= UINT8_MAX ? OP_GET_GLOBAL : OP_GET_GLOBAL_LONG;
+        incOp = arg <= UINT8_MAX ? isAddition ? OP_INC_GLOBAL : OP_DEC_GLOBAL : 
+            isAddition ? OP_INC_GLOBAL_LONG : OP_DEC_GLOBAL_LONG;
+    } 
+    
+    
+    // was a field
+    if(match(TOKEN_DOT)) {
+        // get the instance stored in this thing
+        emitByte(getOp);
+        if(getOp == OP_GET_GLOBAL_LONG) emitLongIndex(arg);
+        else emitByte((uint8_t) arg);
+
+        consume(TOKEN_IDENTIFIER, "Expect a field after '.'.");
+        int name = identifierConstant(&parser.previous);
+
+        while(match(TOKEN_DOT)) {
+            emitByteAndIndex(OP_GET_PROPERTY, OP_GET_PROPERTY_LONG, name);
+            consume(TOKEN_IDENTIFIER, "Expect a field after '.'.");
+            name = identifierConstant(&parser.previous);
+        } 
+
+        emitByteAndIndex(isAddition ? OP_INC_PROPERTY : OP_DEC_PROPERTY, 
+            isAddition ? OP_INC_PROPERTY_LONG : OP_DEC_PROPERTY_LONG, name);
+         
+    // was not a field, so just immediately increment
+    } else {
+        if(!modifiable) {
+            error("Cannot increment/decrement a constant.");
+            return;
+        } 
+        emitByte(incOp);
+        if(getOp == OP_GET_GLOBAL_LONG) emitLongIndex(arg);
+        else emitByte((uint8_t) arg);
+    } 
+} 
+
 // this is an infix operator function
 static void and_(bool canAssign) {
     // left hand side already on top
@@ -882,6 +948,8 @@ ParseRule rules[] = {
     [TOKEN_MINUS_EQUAL]   = {NULL,     NULL,   PREC_NONE},
     [TOKEN_STAR_EQUAL]    = {NULL,     NULL,   PREC_NONE},
     [TOKEN_SLASH_EQUAL]   = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_PLUS_PLUS]     = {preIncr,  NULL,   PREC_UNARY},
+    [TOKEN_MINUS_MINUS]   = {preIncr,  NULL,   PREC_UNARY},
 };
 
 static void parsePrecedence(Precedence precedence) {
@@ -890,6 +958,7 @@ static void parsePrecedence(Precedence precedence) {
     // i.e. it should not be placed here
     // reading L to R < the first token is *always* a prefix expression
     ParseFn prefixRule = getRule(parser.previous.type)->prefix;
+    /*
     if(parser.previous.type == TOKEN_CASE) {
         error("Can't have 'case' after 'default' or outside of a 'switch'.");
         return;
@@ -898,6 +967,7 @@ static void parsePrecedence(Precedence precedence) {
         error("Can't have 'default' outside of a 'switch'.");
         return;
     } 
+    */
     if(prefixRule == NULL) {
         error("Expect expression.");
         return;

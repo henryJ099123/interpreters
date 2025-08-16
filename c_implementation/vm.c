@@ -136,9 +136,11 @@ void initVM() {
     vm.initString = copyString("init", 4); // might trigger a GC
 
     // native functions
+    /*
     defineNative("clock", clockNative);
     defineNative("sqrt", sqrtNative);
     defineNative("inputLine", userInputNative);
+    */
 } 
 
 void freeVM() {
@@ -383,11 +385,11 @@ static InterpretResult run() {
     CallFrame* frame = &vm.frames[vm.frameCount - 1];
 
 #define READ_BYTE() (*frame->ip++) // advance!
-#define READ_BYTE_LONG() (0x00FFFFFF & \
+#define READ_LONG_BYTE() (0x00FFFFFF & \
         ((READ_BYTE() << 16) | (READ_BYTE() << 8) | (READ_BYTE())))
 #define READ_SHORT() (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
-#define READ_LONG_CONSTANT() (frame->closure->function->chunk.constants.values[ READ_BYTE_LONG() ] )
+#define READ_LONG_CONSTANT() (frame->closure->function->chunk.constants.values[ READ_LONG_BYTE() ] )
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define READ_LONG_STRING() AS_STRING(READ_LONG_CONSTANT())
 // need the `do`...`while` to force adding a semicolon at the end
@@ -516,7 +518,7 @@ static InterpretResult run() {
                 break;
             } 
             case OP_DEFINE_GLOBAL_LONG: {
-                vm.globalValues.values[READ_BYTE_LONG()] = peek(0);
+                vm.globalValues.values[READ_LONG_BYTE()] = peek(0);
                 pop();
             /*
                 ObjString* name = READ_LONG_STRING();
@@ -546,7 +548,7 @@ static InterpretResult run() {
                 break;
             } 
             case OP_GET_GLOBAL_LONG: {
-                uint32_t index = READ_BYTE_LONG();
+                uint32_t index = READ_LONG_BYTE();
                 if(IS_UNDEF(vm.globalValues.values[index])) {
                     ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
                     if(key == NULL) runtimeError("Undefined variable.");
@@ -564,7 +566,7 @@ static InterpretResult run() {
                 push(value);
             */
                 break;
-            } 
+            }
             case OP_SET_GLOBAL: {
                 uint8_t index = READ_BYTE();    
                 if(IS_UNDEF(vm.globalValues.values[index])) {
@@ -588,7 +590,7 @@ static InterpretResult run() {
                 break;
             } 
             case OP_SET_GLOBAL_LONG: {
-                uint8_t index = READ_BYTE_LONG();   
+                uint8_t index = READ_LONG_BYTE();   
                 if(IS_UNDEF(vm.globalValues.values[index])) {
                     ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
                     if(key == NULL) runtimeError("Trying to set undefined variable.");
@@ -696,6 +698,222 @@ static InterpretResult run() {
                 ObjClass* superclass = AS_CLASS(pop());
                 if(!bindMethod(superclass, name))
                     return INTERPRET_RUNTIME_ERROR;
+                break;
+            } 
+            case OP_INC_LOCAL: {
+                uint8_t slot = READ_BYTE();
+                if(!IS_NUMBER(frame->slots[slot])) {
+                    runtimeError("Can't increment something that isn't a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                Value value = NUMBER_VAL(AS_NUMBER(frame->slots[slot])+1);
+                push(value);
+                frame->slots[slot] = value;
+                break;
+            } 
+            case OP_DEC_LOCAL: {
+                uint8_t slot = READ_BYTE();
+                if(!IS_NUMBER(frame->slots[slot])) {
+                    runtimeError("Can't decrement something that isn't a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                Value value = NUMBER_VAL(AS_NUMBER(frame->slots[slot])-1);
+                push(value);
+                frame->slots[slot] = value;
+                break;
+            } 
+            case OP_INC_UPVALUE: {
+                uint8_t slot = READ_BYTE();
+                if(!IS_NUMBER(*frame->closure->upvalues[slot]->location)) {
+                    runtimeError("Can't increment something that isn't a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                Value value = NUMBER_VAL(AS_NUMBER(*frame->closure->upvalues[slot]->location)+1);
+                push(value);
+                *frame->closure->upvalues[slot]->location = value;
+                break;
+            } 
+            case OP_DEC_UPVALUE: {
+                uint8_t slot = READ_BYTE();
+                if(!IS_NUMBER(*frame->closure->upvalues[slot]->location)) {
+                    runtimeError("Can't decrement something that isn't a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                Value value = NUMBER_VAL(AS_NUMBER(*frame->closure->upvalues[slot]->location)-1);
+                push(value);
+                *frame->closure->upvalues[slot]->location = value;
+                break;
+            } 
+            case OP_INC_GLOBAL: {
+                uint8_t index = READ_BYTE();
+                if(IS_UNDEF(vm.globalValues.values[index])) {
+                    ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
+                    if(key == NULL) runtimeError("Trying to increment undefined variable.");
+                    else runtimeError("Trying to increment undefined variable '%s'.", key->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                if(!IS_NUMBER(vm.globalValues.values[index])) {
+                    runtimeError("Can't increment something that isn't a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                Value newVal = NUMBER_VAL(AS_NUMBER(vm.globalValues.values[index]) + 1);
+                push(newVal);
+                vm.globalValues.values[index] = newVal;
+                break;
+            } 
+            case OP_DEC_GLOBAL: {
+                uint8_t index = READ_BYTE();
+                if(IS_UNDEF(vm.globalValues.values[index])) {
+                    ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
+                    if(key == NULL) runtimeError("Trying to decrementundefined variable.");
+                    else runtimeError("Trying to decrementundefined variable '%s'.", key->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                if(!IS_NUMBER(vm.globalValues.values[index])) {
+                    runtimeError("Can't decrement something that isn't a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                Value newVal = NUMBER_VAL(AS_NUMBER(vm.globalValues.values[index]) - 1);
+                push(newVal);
+                vm.globalValues.values[index] = newVal;
+                break;
+            } 
+            case OP_INC_GLOBAL_LONG: {
+                uint8_t index = READ_LONG_BYTE();
+                if(IS_UNDEF(vm.globalValues.values[index])) {
+                    ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
+                    if(key == NULL) runtimeError("Trying to increment undefined variable.");
+                    else runtimeError("Trying to increment undefined variable '%s'.", key->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                if(!IS_NUMBER(vm.globalValues.values[index])) {
+                    runtimeError("Can't increment something that isn't a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                Value newVal = NUMBER_VAL(AS_NUMBER(vm.globalValues.values[index]) + 1);
+                push(newVal);
+                vm.globalValues.values[index] = newVal;
+                break;
+            } 
+            case OP_DEC_GLOBAL_LONG: {
+                uint8_t index = READ_LONG_BYTE();
+                if(IS_UNDEF(vm.globalValues.values[index])) {
+                    ObjString* key = tableFindKey(&vm.globalNames, NUMBER_VAL((double) index));
+                    if(key == NULL) runtimeError("Trying to decrementundefined variable.");
+                    else runtimeError("Trying to decrementundefined variable '%s'.", key->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                if(!IS_NUMBER(vm.globalValues.values[index])) {
+                    runtimeError("Can't decrement something that isn't a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                Value newVal = NUMBER_VAL(AS_NUMBER(vm.globalValues.values[index]) - 1);
+                push(newVal);
+                vm.globalValues.values[index] = newVal;
+                break;
+            } 
+            case OP_INC_PROPERTY: {
+                if(!IS_INSTANCE(peek(0))) {
+                    runtimeError("Cannot access field on a non-instance.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                ObjInstance* instance = AS_INSTANCE(peek(0));
+                ObjString* name = READ_STRING();
+                Value value;
+
+                if(!tableGet(&instance->fields, name, &value)) {
+                    runtimeError("Undefined property '%s'.", name->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+
+                if(!IS_NUMBER(value)) {
+                    runtimeError("Can't increment a field that isn't a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+
+                value = NUMBER_VAL(AS_NUMBER(value) + 1);
+
+                tableSet(&instance->fields, name, value);
+                pop(); // instance.
+                push(value);
+                break;
+            } 
+            case OP_DEC_PROPERTY: {
+                if(!IS_INSTANCE(peek(0))) {
+                    runtimeError("Cannot access field on a non-instance.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                ObjInstance* instance = AS_INSTANCE(peek(0));
+                ObjString* name = READ_STRING();
+                Value value;
+
+                if(!tableGet(&instance->fields, name, &value)) {
+                    runtimeError("Undefined property '%s'.", name->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+
+                if(!IS_NUMBER(value)) {
+                    runtimeError("Can't decrement a field that isn't a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+
+                value = NUMBER_VAL(AS_NUMBER(value) - 1);
+
+                tableSet(&instance->fields, name, value);
+                pop(); // instance.
+                push(value);
+                break;
+            } 
+            case OP_INC_PROPERTY_LONG: {
+                if(!IS_INSTANCE(peek(0))) {
+                    runtimeError("Cannot access field on a non-instance.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                ObjInstance* instance = AS_INSTANCE(peek(0));
+                ObjString* name = READ_LONG_STRING();
+                Value value;
+
+                if(!tableGet(&instance->fields, name, &value)) {
+                    runtimeError("Undefined property '%s'.", name->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+
+                if(!IS_NUMBER(value)) {
+                    runtimeError("Can't increment a field that isn't a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+
+                value = NUMBER_VAL(AS_NUMBER(value) + 1);
+
+                tableSet(&instance->fields, name, value);
+                pop(); // instance.
+                push(value);
+                break;
+            } 
+            case OP_DEC_PROPERTY_LONG: {
+                if(!IS_INSTANCE(peek(0))) {
+                    runtimeError("Cannot access field on a non-instance.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+                ObjInstance* instance = AS_INSTANCE(peek(0));
+                ObjString* name = READ_LONG_STRING();
+                Value value;
+
+                if(!tableGet(&instance->fields, name, &value)) {
+                    runtimeError("Undefined property '%s'.", name->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+
+                if(!IS_NUMBER(value)) {
+                    runtimeError("Can't decrement a field that isn't a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                } 
+
+                value = NUMBER_VAL(AS_NUMBER(value) - 1);
+
+                tableSet(&instance->fields, name, value);
+                pop(); // instance.
+                push(value);
                 break;
             } 
             case OP_JUMP: {
@@ -858,7 +1076,7 @@ static InterpretResult run() {
         } 
     } 
 #undef READ_BYTE
-#undef READ_BYTE_LONG
+#undef READ_LONG_BYTE
 #undef READ_SHORT
 #undef READ_CONSTANT
 #undef READ_LONG_CONSTANT
